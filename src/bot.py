@@ -1,6 +1,7 @@
 import asyncio
 import discord
 from src.llm import improve_prompt, chat
+from src.comfyui import generate_image
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -35,9 +36,16 @@ async def on_message(message):
             improved = await asyncio.get_event_loop().run_in_executor(
                 None, improve_prompt, prompt
             )
-            await msg.edit(content=f"**Improved prompt:**\n{improved}")
+            await msg.edit(content=f"Generating image for: *{improved}*")
+            image_bytes = await asyncio.get_event_loop().run_in_executor(
+                None, generate_image, improved
+            )
+            await message.channel.send(
+                file=discord.File(fp=__import__("io").BytesIO(image_bytes), filename="image.png")
+            )
+            await msg.delete()
         except Exception as e:
-            await msg.edit(content=f"Error improving prompt: {e}")
+            await msg.edit(content=f"Error: {e}")
     else:
         user_message = content[4:].strip()
         msg = await message.reply("Thinking...")

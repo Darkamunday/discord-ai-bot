@@ -56,5 +56,13 @@ discord-ai-bot/
 - `"lucy ..."` (anything else) → general chat via Ollama, Lucy persona
 - `llm.py` refactored: shared `_ollama_chat()` helper, `improve_prompt()` and `chat()` as public functions
 
-## Next — Step 4
-Wire up `src/comfyui.py`: take the improved prompt from the LLM and send it to the remote ComfyUI API to generate an image. Return the image file to Discord. Goal: confirm the full pipeline works — Discord → LLM → ComfyUI → image back in Discord.
+### Completed — Step 4
+- `workflows/txt2img.json` copied into project (JuggernautXL, 1024×1536, 20 steps)
+- `src/comfyui.py`: injects improved prompt into node 2, randomises seed, POSTs to `/prompt`, polls `/history/{id}`, fetches image from `/view`
+- `src/bot.py`: full pipeline — improve prompt → generate image → send as Discord file attachment
+- ComfyUI running at `194.93.48.43:8188` (set in `.env`, gitignored)
+- Fixed Windows encoding issue on workflow JSON (utf-8 explicit open)
+- Full pipeline tested and working end to end
+
+## Next — Step 5
+Add auth to the ComfyUI connection before going live. Options: API key header, HTTP basic auth, or VPN/tunnel. To be decided based on what ComfyUI supports on the remote machine.

@@ -1,7 +1,7 @@
 import asyncio
 import discord
-from src.llm import improve_prompt, chat
-from src.comfyui import generate_image
+from src.llm import improve_prompt, get_inpaint_params, chat
+from src.comfyui import generate_image, generate_image_qwen_inpaint
 from src import config, state
 
 intents = discord.Intents.default()
@@ -59,21 +59,49 @@ async def on_message(message):
 
     lower = content.lower()
 
-    if "image of" in lower:
-        idx = lower.index("image of") + len("image of")
-        prompt = content[idx:].strip()
-        if not prompt:
-            await message.reply("What should the image be of?")
-            return
+    image_attachments = [
+        a for a in message.attachments
+        if (a.content_type and a.content_type.startswith("image/"))
+        or a.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+    ]
+
+    if "image of" in lower or image_attachments:
+        if image_attachments:
+            prompt_text = content[len(prefix):].strip()
+            if not prompt_text:
+                await message.reply("Describe what to do with the image.")
+                return
+        else:
+            idx = lower.index("image of") + len("image of")
+            prompt_text = content[idx:].strip()
+            if not prompt_text:
+                await message.reply("What should the image be of?")
+                return
+
         msg = await message.reply("Improving your prompt...")
         try:
-            improved = await asyncio.get_event_loop().run_in_executor(
-                None, improve_prompt, prompt, guild_id
-            )
-            await msg.edit(content=f"Generating image for: *{improved}*")
-            image_bytes = await asyncio.get_event_loop().run_in_executor(
-                None, generate_image, improved, guild_id
-            )
+            if image_attachments:
+                attachment = image_attachments[0]
+                attachment_bytes = await attachment.read()
+                await msg.edit(content="Analysing your image...")
+                params = await asyncio.get_event_loop().run_in_executor(
+                    None, get_inpaint_params, prompt_text, guild_id
+                )
+                mask_subject = params.get("mask_subject", "subject")
+                improved = params.get("prompt", prompt_text)
+                await msg.edit(content=f"Inpainting *{mask_subject}*: *{improved}*")
+                image_bytes = await asyncio.get_event_loop().run_in_executor(
+                    None, generate_image_qwen_inpaint, improved, mask_subject, attachment_bytes, attachment.filename, guild_id
+                )
+            else:
+                improved = await asyncio.get_event_loop().run_in_executor(
+                    None, improve_prompt, prompt_text, guild_id
+                )
+                await msg.edit(content=f"Generating image for: *{improved}*")
+                image_bytes = await asyncio.get_event_loop().run_in_executor(
+                    None, generate_image, improved, guild_id
+                )
+
             await message.channel.send(
                 file=discord.File(fp=__import__("io").BytesIO(image_bytes), filename="image.png")
             )

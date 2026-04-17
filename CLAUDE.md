@@ -73,13 +73,20 @@ discord-ai-bot/
 - `config.json` gitignored; `config.example.json` committed as template
 - All settings (prefix, model, system prompt, image size/steps/CFG, allowed channels) are per-guild and hot-reload on every message
 
-## Next — Step 5: Advanced ComfyUI workflows
-User wants to expand beyond the single txt2img workflow. Still gathering requirements:
-- What workflow types to add (img2img, upscaling, LoRA, aspect ratio presets, etc.)
-- How to trigger them in Discord (different phrases vs flags)
-- Whether workflow JSONs are pre-exported or need building
+### Completed — Step 5a: img2img workflow
+- `workflows/img2img.json`: built from scratch — same checkpoint/sampler as txt2img, swaps `EmptyLatentImage` for `LoadImage` → `VAEEncode`, denoise 0.75
+- `src/comfyui.py`: extracted `_poll_for_image()` helper; added `generate_image_from_image()` — uploads attachment to ComfyUI `/upload/image`, injects filename + improved prompt, polls for result
+- `src/bot.py`: detects image attachments on any `lucy` message; if attachment present → img2img pipeline, otherwise falls back to txt2img as before
 
-Resume by asking these three questions and proceeding from the answers.
+### Completed — Step 5b: Qwen inpainting with auto-mask
+- `workflows/qwen_inpaint.json`: Qwen Image Edit workflow with GroundingDINO + SAM auto-masking replacing manual clipspace mask
+- `src/llm.py`: `get_inpaint_params()` returns JSON with `mask_subject` (e.g. "hair") and direct edit instruction for Qwen
+- `src/comfyui.py`: `generate_image_qwen_inpaint()` uploads image, injects mask_subject into GroundingDinoSAMSegment, injects edit prompt into TextEncodeQwenImageEditPlus
+- `src/bot.py`: image attachment → Qwen inpaint pipeline; no attachment → txt2img as before
+- Models used: Qwen-Image-Edit fp8, Qwen2.5-VL 7B fp8 CLIP, Lightning LoRA, GroundingDINO SwinT, SAM ViT-H
+
+## Next — Step 6
+Options to consider: upscaling, txt2img improvements, additional edit types. Ask user what to tackle next.
 
 ## Deferred
 - ComfyUI auth (open IP `194.93.48.43:8188`, no auth yet — fine for dev, needed before going public)

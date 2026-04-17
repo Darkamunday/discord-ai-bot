@@ -1,0 +1,89 @@
+{
+  "1": {
+    "inputs": { "ckpt_name": "juggernautXL_ragnarokBy.safetensors" },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": { "title": "Load Checkpoint" }
+  },
+  "2": {
+    "inputs": { "text": "", "clip": ["1", 1] },
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "Positive Prompt" }
+  },
+  "3": {
+    "inputs": {
+      "text": "freckles, changed face, different person, skin blemishes, 色调艳丽，过曝，静态，细节模糊不清，字幕，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的",
+      "clip": ["1", 1]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "Negative Prompt" }
+  },
+  "4": {
+    "inputs": { "image": "", "upload": "image" },
+    "class_type": "LoadImage",
+    "_meta": { "title": "Load Image" }
+  },
+  "5": {
+    "inputs": { "model_name": "GroundingDINO_SwinT_OGC (694MB)" },
+    "class_type": "GroundingDinoModelLoader (segment anything)",
+    "_meta": { "title": "GroundingDINO Loader" }
+  },
+  "6": {
+    "inputs": { "model_name": "sam_vit_h (2.56GB)" },
+    "class_type": "SAMModelLoader (segment anything)",
+    "_meta": { "title": "SAM Loader" }
+  },
+  "7": {
+    "inputs": {
+      "sam_model": ["6", 0],
+      "grounding_dino_model": ["5", 0],
+      "image": ["4", 0],
+      "prompt": "face",
+      "threshold": 0.3
+    },
+    "class_type": "GroundingDinoSAMSegment (segment anything)",
+    "_meta": { "title": "GroundingDINO SAM Segment (Face)" }
+  },
+  "12": {
+    "inputs": {
+      "mask": ["7", 1]
+    },
+    "class_type": "InvertMask (segment anything)",
+    "_meta": { "title": "Invert Mask" }
+  },
+  "8": {
+    "inputs": {
+      "pixels": ["4", 0],
+      "vae": ["1", 2],
+      "mask": ["12", 0],
+      "grow_mask_by": 8
+    },
+    "class_type": "VAEEncodeForInpaint",
+    "_meta": { "title": "VAE Encode For Inpaint" }
+  },
+  "9": {
+    "inputs": {
+      "seed": 756237803264358,
+      "steps": 20,
+      "cfg": 6,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 0.65,
+      "model": ["1", 0],
+      "positive": ["2", 0],
+      "negative": ["3", 0],
+      "latent_image": ["8", 0]
+    },
+    "class_type": "KSampler",
+    "_meta": { "title": "KSampler" }
+  },
+  "10": {
+    "inputs": { "samples": ["9", 0], "vae": ["1", 2] },
+    "class_type": "VAEDecode",
+    "_meta": { "title": "VAE Decode" }
+  },
+  "11": {
+    "inputs": { "filename_prefix": "ComfyUI", "images": ["10", 0] },
+    "class_type": "SaveImage",
+    "_meta": { "title": "Save Image" }
+  }
+}

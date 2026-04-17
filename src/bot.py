@@ -90,17 +90,19 @@ async def on_message(message):
                 mask_subject = params.get("mask_subject", "subject")
                 improved = params.get("prompt", prompt_text)
                 await msg.edit(content=f"Inpainting *{mask_subject}*: *{improved}*")
-                image_bytes = await asyncio.get_event_loop().run_in_executor(
-                    None, generate_image_qwen_inpaint, improved, mask_subject, attachment_bytes, attachment.filename, guild_id
-                )
+                async with message.channel.typing():
+                    image_bytes = await asyncio.get_event_loop().run_in_executor(
+                        None, generate_image_qwen_inpaint, improved, mask_subject, attachment_bytes, attachment.filename, guild_id
+                    )
             else:
                 improved = await asyncio.get_event_loop().run_in_executor(
                     None, improve_prompt, prompt_text, guild_id
                 )
                 await msg.edit(content=f"Generating image for: *{improved}*")
-                image_bytes = await asyncio.get_event_loop().run_in_executor(
-                    None, generate_image, improved, guild_id
-                )
+                async with message.channel.typing():
+                    image_bytes = await asyncio.get_event_loop().run_in_executor(
+                        None, generate_image, improved, guild_id
+                    )
 
             await message.channel.send(
                 file=discord.File(fp=__import__("io").BytesIO(image_bytes), filename="image.png")

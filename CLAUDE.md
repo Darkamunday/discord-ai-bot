@@ -44,5 +44,11 @@ discord-ai-bot/
 - `main.py`: loads `.env`, validates `DISCORD_TOKEN`, starts bot
 - Bot tested successfully — comes online and responds to `!image` in Discord
 
-## Next — Step 3
-Wire up `src/llm.py`: send the `!image` prompt to Ollama (`/api/generate`) to get an improved prompt back. `bot.py` calls `llm.py` and prints the improved prompt (still no ComfyUI yet). Goal: confirm Ollama round-trip works end to end.
+### Completed — Step 3
+- `src/llm.py`: `improve_prompt()` calls Ollama `/api/chat` (cloud model requires chat endpoint, not `/api/generate`)
+- `bot.py`: calls `improve_prompt()` in executor, shows "Improving..." then edits to improved prompt
+- `main.py`: `load_dotenv()` moved before imports so env vars are available at module load time
+- Tested successfully end to end with `gpt-oss:120b-cloud`
+
+## Next — Step 4
+Wire up `src/comfyui.py`: take the improved prompt from Step 3 and send it to the remote ComfyUI API to generate an image. Return the image file to Discord. Goal: confirm the full pipeline works — Discord → LLM → ComfyUI → image back in Discord.

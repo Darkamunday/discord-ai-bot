@@ -1,8 +1,9 @@
 import os
 from dotenv import load_dotenv
-from src.bot import bot
 
 load_dotenv()
+
+from src.bot import bot
 
 token = os.getenv("DISCORD_TOKEN")
 if not token:

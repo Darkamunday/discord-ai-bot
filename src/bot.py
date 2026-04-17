@@ -1,5 +1,7 @@
+import asyncio
 import discord
 from discord.ext import commands
+from src.llm import improve_prompt
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -14,4 +16,11 @@ async def on_ready():
 
 @bot.command(name="image")
 async def image(ctx, *, prompt: str):
-    await ctx.reply(f"Image generation coming soon: `{prompt}`")
+    msg = await ctx.reply("Improving your prompt...")
+    try:
+        improved = await asyncio.get_event_loop().run_in_executor(
+            None, improve_prompt, prompt
+        )
+        await msg.edit(content=f"**Improved prompt:**\n{improved}")
+    except Exception as e:
+        await msg.edit(content=f"Error improving prompt: {e}")

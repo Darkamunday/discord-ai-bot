@@ -4,6 +4,7 @@ import os
 import random
 import time
 import requests
+from src import config
 
 COMFYUI_BASE_URL = os.getenv("COMFYUI_BASE_URL", "http://localhost:8188")
 WORKFLOW_PATH = os.path.join(os.path.dirname(__file__), "..", "workflows", "txt2img.json")
@@ -12,9 +13,14 @@ with open(WORKFLOW_PATH, encoding="utf-8") as f:
     _BASE_WORKFLOW = json.load(f)
 
 
-def generate_image(prompt: str) -> bytes:
+def generate_image(prompt: str, guild_id: int) -> bytes:
+    cfg = config.load(guild_id)
     workflow = copy.deepcopy(_BASE_WORKFLOW)
     workflow["2"]["inputs"]["text"] = prompt
+    workflow["4"]["inputs"]["width"] = cfg["image_width"]
+    workflow["4"]["inputs"]["height"] = cfg["image_height"]
+    workflow["5"]["inputs"]["steps"] = cfg["image_steps"]
+    workflow["5"]["inputs"]["cfg"] = cfg["image_cfg"]
     workflow["5"]["inputs"]["seed"] = random.randint(0, 2**32 - 1)
 
     resp = requests.post(f"{COMFYUI_BASE_URL}/prompt", json={"prompt": workflow}, timeout=30)

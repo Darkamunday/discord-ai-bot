@@ -1,12 +1,18 @@
 import os
+import threading
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.bot import bot
+from src.bot import client
+from src.web import run as run_web
 
 token = os.getenv("DISCORD_TOKEN")
 if not token:
     raise RuntimeError("DISCORD_TOKEN not set in .env")
 
-bot.run(token)
+web_thread = threading.Thread(target=run_web, daemon=True)
+web_thread.start()
+print("Admin UI running at http://127.0.0.1:5000")
+
+client.run(token)

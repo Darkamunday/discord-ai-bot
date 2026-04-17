@@ -64,5 +64,14 @@ discord-ai-bot/
 - Fixed Windows encoding issue on workflow JSON (utf-8 explicit open)
 - Full pipeline tested and working end to end
 
+### Completed — Admin web UI + per-guild config
+- `src/config.py`: per-guild config stored in `config.json` under `{"guilds": {"id": {...}}}`, defaults applied for any missing keys
+- `src/state.py`: shared runtime state — guilds and channels lists populated by bot, read by Flask
+- `src/web.py`: Flask admin UI on `localhost:5000` — guild dropdown, settings per server, channel checkboxes
+- `src/bot.py`: `on_guild_join` / `on_guild_remove` refresh state live — no restart needed when joining a new server
+- `main.py`: Flask runs in a daemon thread alongside the bot
+- `config.json` gitignored; `config.example.json` committed as template
+- All settings (prefix, model, system prompt, image size/steps/CFG, allowed channels) are per-guild and hot-reload on every message
+
 ## Next — Step 5
 Add auth to the ComfyUI connection before going live. Options: API key header, HTTP basic auth, or VPN/tunnel. To be decided based on what ComfyUI supports on the remote machine.

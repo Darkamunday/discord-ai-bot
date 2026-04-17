@@ -14,6 +14,9 @@ DEFAULTS = {
     "image_height": 1536,
     "image_steps": 20,
     "image_cfg": 6.0,
+    "inpaint_threshold": 0.05,
+    "inpaint_expand": 15,
+    "inpaint_blur_radius": 2,
     "allowed_channels": [],
 }
 

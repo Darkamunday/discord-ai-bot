@@ -89,6 +89,9 @@ def generate_image_qwen_inpaint(prompt: str, mask_subject: str, image_bytes: byt
     workflow = _get_workflow("qwen_inpaint.json")
     workflow["101"]["inputs"]["image"] = uploaded_name
     workflow["202"]["inputs"]["prompt"] = mask_subject
+    workflow["202"]["inputs"]["threshold"] = cfg["inpaint_threshold"]
+    workflow["28"]["inputs"]["expand"] = cfg["inpaint_expand"]
+    workflow["28"]["inputs"]["blur_radius"] = cfg["inpaint_blur_radius"]
     workflow["53"]["inputs"]["prompt"] = prompt
     workflow["43"]["inputs"]["seed"] = random.randint(0, 2**32 - 1)
 

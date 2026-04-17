@@ -75,6 +75,25 @@ TEMPLATE = """
         <div><label>CFG</label><input type="number" step="0.1" name="image_cfg" value="{{ cfg.image_cfg }}"></div>
       </div>
 
+      <h2>Image Editing (Inpaint)</h2>
+      <div class="row">
+        <div>
+          <label>Detection threshold</label>
+          <input type="number" step="0.01" min="0.01" max="1" name="inpaint_threshold" value="{{ cfg.inpaint_threshold }}">
+          <span class="muted">Lower = catch more strands (0.05 recommended)</span>
+        </div>
+        <div>
+          <label>Mask expand (px)</label>
+          <input type="number" name="inpaint_expand" value="{{ cfg.inpaint_expand }}">
+          <span class="muted">Grows mask outward to catch edges</span>
+        </div>
+        <div>
+          <label>Mask blur radius</label>
+          <input type="number" name="inpaint_blur_radius" value="{{ cfg.inpaint_blur_radius }}">
+          <span class="muted">Feathers mask edges</span>
+        </div>
+      </div>
+
       <h2>Allowed Channels</h2>
       <p class="muted" style="margin:4px 0 10px">None selected = respond in all channels.</p>
       {% if guild_channels %}
@@ -118,6 +137,9 @@ def index():
         cfg["image_height"] = int(request.form["image_height"])
         cfg["image_steps"] = int(request.form["image_steps"])
         cfg["image_cfg"] = float(request.form["image_cfg"])
+        cfg["inpaint_threshold"] = float(request.form["inpaint_threshold"])
+        cfg["inpaint_expand"] = int(request.form["inpaint_expand"])
+        cfg["inpaint_blur_radius"] = int(request.form["inpaint_blur_radius"])
         cfg["allowed_channels"] = [int(v) for v in request.form.getlist("allowed_channels")]
         config.save(guild_id, cfg)
         saved = True

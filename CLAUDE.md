@@ -73,5 +73,15 @@ discord-ai-bot/
 - `config.json` gitignored; `config.example.json` committed as template
 - All settings (prefix, model, system prompt, image size/steps/CFG, allowed channels) are per-guild and hot-reload on every message
 
-## Next — Step 5
-Add auth to the ComfyUI connection before going live. Options: API key header, HTTP basic auth, or VPN/tunnel. To be decided based on what ComfyUI supports on the remote machine.
+## Next — Step 5: Advanced ComfyUI workflows
+User wants to expand beyond the single txt2img workflow. Still gathering requirements:
+- What workflow types to add (img2img, upscaling, LoRA, aspect ratio presets, etc.)
+- How to trigger them in Discord (different phrases vs flags)
+- Whether workflow JSONs are pre-exported or need building
+
+Resume by asking these three questions and proceeding from the answers.
+
+## Deferred
+- ComfyUI auth (open IP `194.93.48.43:8188`, no auth yet — fine for dev, needed before going public)
+- ACE-Step music generation (`lucy give me music of ...`)
+- Discord OAuth login for admin web UI (currently localhost only, no auth)

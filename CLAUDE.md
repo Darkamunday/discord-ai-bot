@@ -50,5 +50,11 @@ discord-ai-bot/
 - `main.py`: `load_dotenv()` moved before imports so env vars are available at module load time
 - Tested successfully end to end with `gpt-oss:120b-cloud`
 
+### Completed — Natural language interface + chat
+- Replaced `!image` command with `on_message` listener triggered by messages starting with `lucy`
+- `"lucy ... image of ..."` → image generation pipeline
+- `"lucy ..."` (anything else) → general chat via Ollama, Lucy persona
+- `llm.py` refactored: shared `_ollama_chat()` helper, `improve_prompt()` and `chat()` as public functions
+
 ## Next — Step 4
-Wire up `src/comfyui.py`: take the improved prompt from Step 3 and send it to the remote ComfyUI API to generate an image. Return the image file to Discord. Goal: confirm the full pipeline works — Discord → LLM → ComfyUI → image back in Discord.
+Wire up `src/comfyui.py`: take the improved prompt from the LLM and send it to the remote ComfyUI API to generate an image. Return the image file to Discord. Goal: confirm the full pipeline works — Discord → LLM → ComfyUI → image back in Discord.

@@ -1,26 +1,50 @@
 import asyncio
 import discord
-from discord.ext import commands
-from src.llm import improve_prompt
+from src.llm import improve_prompt, chat
 
 intents = discord.Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+client = discord.Client(intents=intents)
 
 
-@bot.event
+@client.event
 async def on_ready():
-    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    print(f"Logged in as {client.user} (ID: {client.user.id})")
 
 
-@bot.command(name="image")
-async def image(ctx, *, prompt: str):
-    msg = await ctx.reply("Improving your prompt...")
-    try:
-        improved = await asyncio.get_event_loop().run_in_executor(
-            None, improve_prompt, prompt
-        )
-        await msg.edit(content=f"**Improved prompt:**\n{improved}")
-    except Exception as e:
-        await msg.edit(content=f"Error improving prompt: {e}")
+@client.event
+async def on_message(message):
+    if message.author == client.user:
+        return
+
+    content = message.content.strip()
+    lower = content.lower()
+
+    if not lower.startswith("lucy"):
+        return
+
+    if "image of" in lower:
+        idx = lower.index("image of") + len("image of")
+        prompt = content[idx:].strip()
+        if not prompt:
+            await message.reply("What should the image be of?")
+            return
+        msg = await message.reply("Improving your prompt...")
+        try:
+            improved = await asyncio.get_event_loop().run_in_executor(
+                None, improve_prompt, prompt
+            )
+            await msg.edit(content=f"**Improved prompt:**\n{improved}")
+        except Exception as e:
+            await msg.edit(content=f"Error improving prompt: {e}")
+    else:
+        user_message = content[4:].strip()
+        msg = await message.reply("Thinking...")
+        try:
+            reply = await asyncio.get_event_loop().run_in_executor(
+                None, chat, user_message
+            )
+            await msg.edit(content=reply)
+        except Exception as e:
+            await msg.edit(content=f"Error: {e}")

@@ -82,16 +82,68 @@ INPAINT_SYSTEM_PROMPT = (
 )
 
 
-def get_inpaint_params(user_request: str, guild_id: int) -> dict:
-    raw = _ollama_chat(INPAINT_SYSTEM_PROMPT, user_request, guild_id)
+def get_inpaint_params(user_request: str, guild_id: int, nsfw: bool = False) -> dict:
+    cfg = config.load(guild_id)
+    model = cfg["nsfw_image_model"] if nsfw else cfg["inpaint_model"]
+    response = requests.post(
+        f"{OLLAMA_BASE_URL}/api/chat",
+        json={
+            "model": model,
+            "messages": [
+                {"role": "system", "content": INPAINT_SYSTEM_PROMPT},
+                {"role": "user", "content": user_request},
+            ],
+            "stream": False,
+        },
+        timeout=60,
+    )
+    response.raise_for_status()
+    raw = response.json()["message"]["content"].strip()
+    with open("inpaint_debug.log", "a", encoding="utf-8") as f:
+        f.write(f"request: {repr(user_request)}\nresponse: {repr(raw)}\n---\n")
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
         start = raw.find("{")
         end = raw.rfind("}") + 1
+        if start == -1 or end == 0:
+            raise ValueError(f"LLM returned non-JSON: {repr(raw)}")
         return json.loads(raw[start:end])
 
 
-def chat(message: str, guild_id: int) -> str:
+def chat(message: str, guild_id: int, history: list = None) -> str:
     cfg = config.load(guild_id)
-    return _ollama_chat(cfg["chat_system_prompt"], message, guild_id)
+    messages = [{"role": "system", "content": cfg["chat_system_prompt"]}]
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": message})
+    response = requests.post(
+        f"{OLLAMA_BASE_URL}/api/chat",
+        json={"model": cfg["ollama_model"], "messages": messages, "stream": False},
+        timeout=60,
+    )
+    response.raise_for_status()
+    return response.json()["message"]["content"].strip()
+
+
+def describe_image(image_bytes: bytes, user_prompt: str, guild_id: int) -> str:
+    import base64
+    cfg = config.load(guild_id)
+    b64 = base64.b64encode(image_bytes).decode("utf-8")
+    response = requests.post(
+        f"{OLLAMA_BASE_URL}/api/chat",
+        json={
+            "model": cfg["vision_model"],
+            "messages": [
+                {
+                    "role": "user",
+                    "content": user_prompt or "Describe this image in detail.",
+                    "images": [b64],
+                }
+            ],
+            "stream": False,
+        },
+        timeout=120,
+    )
+    response.raise_for_status()
+    return response.json()["message"]["content"].strip()

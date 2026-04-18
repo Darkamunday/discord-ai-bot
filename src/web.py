@@ -155,6 +155,7 @@ TEMPLATE = """
         <button type="button" class="tab-btn active" onclick="showTab('bot', this)">Bot</button>
         <button type="button" class="tab-btn" onclick="showTab('llm', this)">Language Model</button>
         <button type="button" class="tab-btn" onclick="showTab('imggen', this)">Image Generation</button>
+        <button type="button" class="tab-btn" onclick="showTab('flux2i2i', this)">Flux2 Restyle</button>
         <button type="button" class="tab-btn" onclick="showTab('inpaint', this)">Inpainting</button>
         <button type="button" class="tab-btn" onclick="showTab('upscale', this)">Upscaling</button>
         <button type="button" class="tab-btn" onclick="showTab('channels', this)">Channels</button>
@@ -168,6 +169,12 @@ TEMPLATE = """
       <div id="tab-llm" class="tab-panel">
         <label>Ollama model</label>
         <input type="text" name="ollama_model" value="{{ cfg.ollama_model }}">
+        <label>Inpaint model</label>
+        <input type="text" name="inpaint_model" value="{{ cfg.inpaint_model }}">
+        <p class="muted">Used to extract mask subject and edit prompt — should be a local uncensored model</p>
+        <label>Vision model</label>
+        <input type="text" name="vision_model" value="{{ cfg.vision_model }}">
+        <p class="muted">Used for image description/analysis — must support vision (e.g. gemma3:12b, llava)</p>
         <label>NSFW image prompt model</label>
         <input type="text" name="nsfw_image_model" value="{{ cfg.nsfw_image_model }}">
         <p class="muted">Used when "nsfw" is included in the message — must be an uncensored model</p>
@@ -178,7 +185,7 @@ TEMPLATE = """
       <div id="tab-imggen" class="tab-panel">
         <label>Model</label>
         <select name="txt2img_model" id="model-select" onchange="updateModelFields()">
-          {% for val, label in [("juggernaut", "Juggernaut XL"), ("flux_schnell", "FLUX.1 Schnell"), ("flux_dev", "FLUX.1 Dev")] %}
+          {% for val, label in [("flux2_klein", "FLUX.2 Klein"), ("juggernaut", "Juggernaut XL"), ("flux_schnell", "FLUX.1 Schnell"), ("flux_dev", "FLUX.1 Dev")] %}
             <option value="{{ val }}" {% if cfg.txt2img_model == val %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
@@ -195,11 +202,25 @@ TEMPLATE = """
           </div>
         </div>
 
+        <div id="flux2-klein-fields">
+          <div class="row">
+            <div><label>Steps</label><input type="number" name="flux2_t2i_steps" value="{{ cfg.flux2_t2i_steps }}"><p class="muted">4 recommended</p></div>
+            <div><label>CFG</label><input type="number" step="0.1" name="flux2_t2i_cfg" value="{{ cfg.flux2_t2i_cfg }}"><p class="muted">1 recommended</p></div>
+          </div>
+        </div>
+
         <div id="flux-dev-fields">
           <div class="row">
             <div><label>Steps</label><input type="number" name="flux_steps" value="{{ cfg.flux_steps }}"></div>
             <div><label>Guidance</label><input type="number" step="0.1" name="flux_guidance" value="{{ cfg.flux_guidance }}"><p class="muted">3.5 recommended</p></div>
           </div>
+        </div>
+      </div>
+
+      <div id="tab-flux2i2i" class="tab-panel">
+        <div class="row">
+          <div><label>Steps</label><input type="number" name="flux2_i2i_steps" value="{{ cfg.flux2_i2i_steps }}"><p class="muted">4 recommended</p></div>
+          <div><label>CFG</label><input type="number" step="0.1" name="flux2_i2i_cfg" value="{{ cfg.flux2_i2i_cfg }}"><p class="muted">1 recommended</p></div>
         </div>
       </div>
 
@@ -267,6 +288,7 @@ TEMPLATE = """
     function updateModelFields() {
       const m = document.getElementById('model-select').value;
       document.getElementById('juggernaut-fields').style.display = m === 'juggernaut' ? '' : 'none';
+      document.getElementById('flux2-klein-fields').style.display = m === 'flux2_klein' ? '' : 'none';
       document.getElementById('flux-dev-fields').style.display = m === 'flux_dev' ? '' : 'none';
     }
     updateModelFields();
@@ -372,6 +394,8 @@ def index():
         cfg = config.load(guild_id)
         cfg["prefix"] = request.form["prefix"].strip()
         cfg["ollama_model"] = request.form["ollama_model"].strip()
+        cfg["inpaint_model"] = request.form["inpaint_model"].strip()
+        cfg["vision_model"] = request.form["vision_model"].strip()
         cfg["nsfw_image_model"] = request.form["nsfw_image_model"].strip()
         cfg["chat_system_prompt"] = request.form["chat_system_prompt"].strip()
         cfg["txt2img_model"] = request.form["txt2img_model"].strip()
@@ -381,6 +405,10 @@ def index():
         cfg["image_cfg"] = float(request.form.get("image_cfg", 6.0))
         cfg["flux_steps"] = int(request.form.get("flux_steps", 20))
         cfg["flux_guidance"] = float(request.form.get("flux_guidance", 3.5))
+        cfg["flux2_t2i_steps"] = int(request.form.get("flux2_t2i_steps", 4))
+        cfg["flux2_t2i_cfg"] = float(request.form.get("flux2_t2i_cfg", 1))
+        cfg["flux2_i2i_steps"] = int(request.form.get("flux2_i2i_steps", 4))
+        cfg["flux2_i2i_cfg"] = float(request.form.get("flux2_i2i_cfg", 1))
         cfg["inpaint_threshold"] = float(request.form["inpaint_threshold"])
         cfg["inpaint_expand"] = int(request.form["inpaint_expand"])
         cfg["inpaint_blur_radius"] = int(request.form["inpaint_blur_radius"])

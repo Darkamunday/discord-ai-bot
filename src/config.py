@@ -10,7 +10,7 @@ DEFAULTS = {
         "You are Lucy, a friendly and helpful AI assistant in a Discord server. "
         "Keep responses concise and conversational."
     ),
-    "txt2img_model": "juggernaut",
+    "txt2img_model": "flux2_klein",
     "image_width": 1024,
     "image_height": 1024,
     "image_steps": 20,
@@ -22,7 +22,13 @@ DEFAULTS = {
     "inpaint_blur_radius": 2,
     "upscale_resolution": 2048,
     "upscale_color_correction": "lab",
+    "flux2_t2i_steps": 4,
+    "flux2_t2i_cfg": 1,
+    "flux2_i2i_steps": 4,
+    "flux2_i2i_cfg": 1,
+    "inpaint_model": "gpt-oss:120b-cloud",
     "nsfw_image_model": "dolphin-mistral",
+    "vision_model": "gemma3:12b",
     "allowed_channels": [],
 }
 

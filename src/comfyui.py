@@ -44,7 +44,15 @@ def generate_image(prompt: str, guild_id: int) -> bytes:
     cfg = config.load(guild_id)
     model = cfg.get("txt2img_model", "juggernaut")
 
-    if model in ("flux_schnell", "flux_dev"):
+    if model == "flux2_klein":
+        workflow = _get_workflow("flux2_t2i.json")
+        workflow["76"]["inputs"]["value"] = prompt
+        workflow["77:88"]["inputs"]["value"] = cfg["image_width"]
+        workflow["77:89"]["inputs"]["value"] = cfg["image_height"]
+        workflow["77:90"]["inputs"]["noise_seed"] = random.randint(0, 2**32 - 1)
+        workflow["77:97"]["inputs"]["steps"] = cfg["flux2_t2i_steps"]
+        workflow["77:94"]["inputs"]["cfg"] = cfg["flux2_t2i_cfg"]
+    elif model in ("flux_schnell", "flux_dev"):
         wf_name = "flux_schnell.json" if model == "flux_schnell" else "flux_dev.json"
         workflow = _get_workflow(wf_name)
         workflow["4"]["inputs"]["text"] = prompt
@@ -99,6 +107,7 @@ def generate_image_qwen_inpaint(prompt: str, mask_subject: str, image_bytes: byt
     upload.raise_for_status()
     uploaded_name = upload.json()["name"]
 
+    cfg = config.load(guild_id)
     workflow = _get_workflow("qwen_inpaint.json")
     workflow["101"]["inputs"]["image"] = uploaded_name
     workflow["202"]["inputs"]["prompt"] = mask_subject
@@ -150,6 +159,28 @@ def generate_image_inpaint(prompt: str, mask_subject: str, image_bytes: bytes, f
     workflow["9"]["inputs"]["steps"] = cfg["image_steps"]
     workflow["9"]["inputs"]["cfg"] = cfg["image_cfg"]
     workflow["9"]["inputs"]["seed"] = random.randint(0, 2**32 - 1)
+
+    resp = requests.post(f"{COMFYUI_BASE_URL}/prompt", json={"prompt": workflow}, timeout=30)
+    resp.raise_for_status()
+    return _poll_for_image(resp.json()["prompt_id"])
+
+
+def generate_image_flux2_i2i(prompt: str, image_bytes: bytes, filename: str, guild_id: int) -> bytes:
+    upload = requests.post(
+        f"{COMFYUI_BASE_URL}/upload/image",
+        files={"image": (filename, image_bytes)},
+        timeout=30,
+    )
+    upload.raise_for_status()
+    uploaded_name = upload.json()["name"]
+
+    cfg = config.load(guild_id)
+    workflow = _get_workflow("flux2_i2i.json")
+    workflow["76"]["inputs"]["image"] = uploaded_name
+    workflow["75:74"]["inputs"]["text"] = prompt
+    workflow["75:73"]["inputs"]["noise_seed"] = random.randint(0, 2**32 - 1)
+    workflow["75:62"]["inputs"]["steps"] = cfg["flux2_i2i_steps"]
+    workflow["75:63"]["inputs"]["cfg"] = cfg["flux2_i2i_cfg"]
 
     resp = requests.post(f"{COMFYUI_BASE_URL}/prompt", json={"prompt": workflow}, timeout=30)
     resp.raise_for_status()

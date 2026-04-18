@@ -18,16 +18,6 @@ IMAGE_SYSTEM_PROMPT_NSFW = (
     "Return only the improved prompt — no explanation, no preamble, no quotes."
 )
 
-IMG2IMG_SYSTEM_PROMPT = (
-    "You are an expert image prompt engineer specialising in image-to-image editing. "
-    "The user wants to make a specific edit to an existing image. "
-    "Rewrite their request as a concise prompt describing the image after the edit. "
-    "ONLY mention what the user explicitly asked to change. "
-    "NEVER add skin tone, freckles, eye colour, facial features, or any detail not in the user's request. "
-    "Keep the same style, character, and composition — only change what was asked. "
-    "Return only the prompt — no explanation, no preamble, no quotes."
-)
-
 
 def _ollama_chat(system: str, user: str, guild_id: int) -> str:
     cfg = config.load(guild_id)
@@ -66,9 +56,6 @@ def improve_prompt(prompt: str, guild_id: int, nsfw: bool = False) -> str:
     response.raise_for_status()
     return response.json()["message"]["content"].strip()
 
-
-def improve_img2img_prompt(prompt: str, guild_id: int) -> str:
-    return _ollama_chat(IMG2IMG_SYSTEM_PROMPT, prompt, guild_id)
 
 
 INPAINT_SYSTEM_PROMPT = (

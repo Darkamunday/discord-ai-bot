@@ -76,27 +76,6 @@ def generate_image(prompt: str, guild_id: int) -> bytes:
     return _poll_for_image(resp.json()["prompt_id"])
 
 
-def generate_image_from_image(prompt: str, image_bytes: bytes, filename: str, guild_id: int) -> bytes:
-    upload = requests.post(
-        f"{COMFYUI_BASE_URL}/upload/image",
-        files={"image": (filename, image_bytes)},
-        timeout=30,
-    )
-    upload.raise_for_status()
-    uploaded_name = upload.json()["name"]
-
-    cfg = config.load(guild_id)
-    workflow = _get_workflow("img2img.json")
-    workflow["2"]["inputs"]["text"] = prompt
-    workflow["4"]["inputs"]["image"] = uploaded_name
-    workflow["5"]["inputs"]["steps"] = cfg["image_steps"]
-    workflow["5"]["inputs"]["cfg"] = cfg["image_cfg"]
-    workflow["5"]["inputs"]["seed"] = random.randint(0, 2**32 - 1)
-
-    resp = requests.post(f"{COMFYUI_BASE_URL}/prompt", json={"prompt": workflow}, timeout=30)
-    resp.raise_for_status()
-    return _poll_for_image(resp.json()["prompt_id"])
-
 
 def generate_image_qwen_inpaint(prompt: str, mask_subject: str, image_bytes: bytes, filename: str, guild_id: int) -> bytes:
     upload = requests.post(
@@ -142,27 +121,6 @@ def generate_image_upscale(image_bytes: bytes, filename: str, guild_id: int) -> 
     resp.raise_for_status()
     return _poll_for_image(resp.json()["prompt_id"])
 
-
-def generate_image_inpaint(prompt: str, mask_subject: str, image_bytes: bytes, filename: str, guild_id: int) -> bytes:
-    upload = requests.post(
-        f"{COMFYUI_BASE_URL}/upload/image",
-        files={"image": (filename, image_bytes)},
-        timeout=30,
-    )
-    upload.raise_for_status()
-    uploaded_name = upload.json()["name"]
-
-    cfg = config.load(guild_id)
-    workflow = _get_workflow("inpaint.json")
-    workflow["2"]["inputs"]["text"] = prompt
-    workflow["4"]["inputs"]["image"] = uploaded_name
-    workflow["9"]["inputs"]["steps"] = cfg["image_steps"]
-    workflow["9"]["inputs"]["cfg"] = cfg["image_cfg"]
-    workflow["9"]["inputs"]["seed"] = random.randint(0, 2**32 - 1)
-
-    resp = requests.post(f"{COMFYUI_BASE_URL}/prompt", json={"prompt": workflow}, timeout=30)
-    resp.raise_for_status()
-    return _poll_for_image(resp.json()["prompt_id"])
 
 
 def generate_image_flux2_i2i(prompt: str, image_bytes: bytes, filename: str, guild_id: int) -> bytes:

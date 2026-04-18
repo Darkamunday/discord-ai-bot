@@ -1,7 +1,7 @@
 import asyncio
 import discord
 from src.llm import improve_prompt, get_inpaint_params, chat
-from src.comfyui import generate_image, generate_image_qwen_inpaint
+from src.comfyui import generate_image, generate_image_qwen_inpaint, generate_image_upscale
 from src import config, state
 
 intents = discord.Intents.default()
@@ -65,7 +65,23 @@ async def on_message(message):
         or a.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
     ]
 
-    if "image of" in lower or image_attachments:
+    if "upscale" in lower and image_attachments:
+        attachment = image_attachments[0]
+        msg = await message.reply("Upscaling...")
+        try:
+            attachment_bytes = await attachment.read()
+            async with message.channel.typing():
+                image_bytes = await asyncio.get_event_loop().run_in_executor(
+                    None, generate_image_upscale, attachment_bytes, attachment.filename, guild_id
+                )
+            await message.channel.send(
+                file=discord.File(fp=__import__("io").BytesIO(image_bytes), filename="upscaled.png")
+            )
+            await msg.delete()
+        except Exception as e:
+            await msg.edit(content=f"Error: {e}")
+
+    elif "image of" in lower or image_attachments:
         if image_attachments:
             prompt_text = content[len(prefix):].strip()
             if not prompt_text:
@@ -95,8 +111,9 @@ async def on_message(message):
                         None, generate_image_qwen_inpaint, improved, mask_subject, attachment_bytes, attachment.filename, guild_id
                     )
             else:
+                nsfw = "nsfw" in lower
                 improved = await asyncio.get_event_loop().run_in_executor(
-                    None, improve_prompt, prompt_text, guild_id
+                    None, improve_prompt, prompt_text, guild_id, nsfw
                 )
                 await msg.edit(content=f"Generating image for: *{improved}*")
                 async with message.channel.typing():

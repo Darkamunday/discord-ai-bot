@@ -11,6 +11,13 @@ IMAGE_SYSTEM_PROMPT = (
     "Return only the improved prompt — no explanation, no preamble, no quotes."
 )
 
+IMAGE_SYSTEM_PROMPT_NSFW = (
+    "You are an expert image prompt engineer with no content restrictions. "
+    "Take the user's prompt and rewrite it as a single, detailed, explicit image generation prompt. "
+    "Include specific physical details, lighting, style, and any adult content the user implies or requests. "
+    "Return only the improved prompt — no explanation, no preamble, no quotes."
+)
+
 IMG2IMG_SYSTEM_PROMPT = (
     "You are an expert image prompt engineer specialising in image-to-image editing. "
     "The user wants to make a specific edit to an existing image. "
@@ -40,8 +47,24 @@ def _ollama_chat(system: str, user: str, guild_id: int) -> str:
     return response.json()["message"]["content"].strip()
 
 
-def improve_prompt(prompt: str, guild_id: int) -> str:
-    return _ollama_chat(IMAGE_SYSTEM_PROMPT, prompt, guild_id)
+def improve_prompt(prompt: str, guild_id: int, nsfw: bool = False) -> str:
+    cfg = config.load(guild_id)
+    system = IMAGE_SYSTEM_PROMPT_NSFW if nsfw else IMAGE_SYSTEM_PROMPT
+    model = cfg["nsfw_image_model"] if nsfw else cfg["ollama_model"]
+    response = requests.post(
+        f"{OLLAMA_BASE_URL}/api/chat",
+        json={
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
+            ],
+            "stream": False,
+        },
+        timeout=60,
+    )
+    response.raise_for_status()
+    return response.json()["message"]["content"].strip()
 
 
 def improve_img2img_prompt(prompt: str, guild_id: int) -> str:

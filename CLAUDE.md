@@ -85,8 +85,25 @@ discord-ai-bot/
 - `src/bot.py`: image attachment → Qwen inpaint pipeline; no attachment → txt2img as before
 - Models used: Qwen-Image-Edit fp8, Qwen2.5-VL 7B fp8 CLIP, Lightning LoRA, GroundingDINO SwinT, SAM ViT-H
 
-## Next — Step 6
-Options to consider: upscaling, txt2img improvements, additional edit types. Ask user what to tackle next.
+### Completed — Step 6: SeedVR2 upscaling
+- `workflows/upscale.json`: converted from node-graph format to ComfyUI API format — SeedVR2 DiT + VAE pipeline, upscales to 2048px
+- `src/comfyui.py`: `generate_image_upscale()` uploads image, injects filename into LoadImage node 571, randomises seed in node 185
+- `src/bot.py`: `lucy upscale` + image attachment → upscale pipeline (checked before inpaint branch)
+- Models required on ComfyUI: `seedvr2_ema_7b_sharp_fp16.safetensors`, `ema_vae_fp16.safetensors`
+- Standalone only (not auto-applied after generation — resources too limited)
+
+### Completed — Step 7: FLUX.1 support + NSFW keyword routing
+- `workflows/flux_schnell.json`: FLUX.1 Schnell workflow (4 steps, no guidance)
+- `workflows/flux_dev.json`: FLUX.1 Dev workflow (20 steps, FluxGuidance node)
+- `src/config.py`: added `txt2img_model`, `flux_steps`, `flux_guidance`, `nsfw_image_model` defaults
+- `src/comfyui.py`: `generate_image()` routes to juggernaut/flux_schnell/flux_dev based on per-guild config
+- `src/llm.py`: `improve_prompt()` accepts `nsfw` flag — uses uncensored model + explicit system prompt when true
+- `src/bot.py`: detects "nsfw" keyword in message, passes flag to `improve_prompt()`
+- `src/web.py`: model selector in Image Generation tab (Juggernaut/Schnell/Dev with conditional fields); NSFW model field in Language Model tab; Discord OAuth2 login added
+- Models: `flux1-dev.safetensors`, `flux1-schnell.safetensors`, `ae.safetensors`, `clip_l.safetensors`, `t5xxl_fp16.safetensors` on ComfyUI machine; `dolphin-mistral` via Ollama for NSFW prompts
+
+## Next — Step 8
+Options: LoRA support, outpainting, additional edit types. Ask user what to tackle next.
 
 ## Deferred
 - ComfyUI auth (open IP `194.93.48.43:8188`, no auth yet — fine for dev, needed before going public)

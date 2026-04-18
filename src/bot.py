@@ -11,6 +11,7 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 MAX_HISTORY = 10
+RECALL_KEYWORDS = ("that image", "last image", "that one", "use that", "take that", "the image you", "that photo", "that pic")
 
 
 async def _build_history(message, prefix: str) -> list:
@@ -93,6 +94,15 @@ async def on_message(message):
         or a.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
     ]
 
+    if not image_attachments and any(kw in lower for kw in RECALL_KEYWORDS):
+        stored = state.last_images.get(message.channel.id)
+        if stored:
+            class _Recalled:
+                filename = stored["filename"]
+                content_type = "image/png"
+                async def read(self): return stored["bytes"]
+            image_attachments = [_Recalled()]
+
     describe_keywords = ("describe", "analys", "analyze", "what is", "what's in", "whats in")
     is_describe = image_attachments and any(kw in lower for kw in describe_keywords)
 
@@ -129,6 +139,7 @@ async def on_message(message):
                 image_bytes = await asyncio.get_event_loop().run_in_executor(
                     None, generate_image_flux2_i2i, improved, attachment_bytes, attachment.filename, guild_id
                 )
+            state.last_images[message.channel.id] = {"bytes": image_bytes, "filename": "restyled.png"}
             await message.channel.send(
                 content=f"```\n{improved}\n```",
                 file=discord.File(fp=__import__("io").BytesIO(image_bytes), filename="restyled.png")
@@ -207,6 +218,7 @@ async def on_message(message):
                         None, generate_image, improved, guild_id
                     )
 
+            state.last_images[message.channel.id] = {"bytes": image_bytes, "filename": "image.png"}
             await message.channel.send(
                 content=f"```\n{improved}\n```",
                 file=discord.File(fp=__import__("io").BytesIO(image_bytes), filename="image.png")

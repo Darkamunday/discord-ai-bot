@@ -99,8 +99,6 @@ def get_inpaint_params(user_request: str, guild_id: int, nsfw: bool = False) -> 
     )
     response.raise_for_status()
     raw = response.json()["message"]["content"].strip()
-    with open("inpaint_debug.log", "a", encoding="utf-8") as f:
-        f.write(f"request: {repr(user_request)}\nresponse: {repr(raw)}\n---\n")
     try:
         return json.loads(raw)
     except json.JSONDecodeError:

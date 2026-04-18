@@ -115,5 +115,6 @@ A Flask admin panel runs at `http://localhost:5000` — configure per-guild sett
 
 ## Planned
 
+- Selectable personalities per guild — pre-built personas choosable via admin UI
 - `lucy give me music of <prompt>` — music generation via ACE-Step
 - ComfyUI auth (currently open IP, fine for dev)

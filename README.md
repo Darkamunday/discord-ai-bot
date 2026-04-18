@@ -107,4 +107,3 @@ A Flask admin panel runs at `http://localhost:5000` — configure per-guild sett
 
 - `lucy give me music of <prompt>` — music generation via ACE-Step
 - ComfyUI auth (currently open IP, fine for dev)
-- Discord OAuth for admin UI

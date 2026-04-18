@@ -61,6 +61,16 @@ lucy <anything>
 ```
 General conversation using the Lucy persona via Ollama.
 
+### Follow-up on last image
+After any image is generated, reference it in a follow-up without re-uploading:
+```
+lucy change that one to red hair
+lucy restyle that image as cyberpunk
+lucy describe that photo
+lucy upscale that one
+```
+Trigger phrases: `that image`, `last image`, `that one`, `use that`, `take that`, `that photo`, `that pic`, `the image you`
+
 ### Reply chaining
 Reply directly to any of Lucy's messages to continue the conversation with full context — no need to re-type the prefix.
 

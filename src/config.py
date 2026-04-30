@@ -59,3 +59,13 @@ def save(guild_id: int, cfg: dict) -> None:
     data = _load_all()
     data.setdefault("guilds", {})[str(guild_id)] = cfg
     _save_all(data)
+
+
+def load_global() -> dict:
+    return _load_all().get("global", {})
+
+
+def save_global(cfg: dict) -> None:
+    data = _load_all()
+    data["global"] = cfg
+    _save_all(data)

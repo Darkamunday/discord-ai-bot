@@ -145,6 +145,18 @@ TEMPLATE = """
     </div>
   </div>
 
+  {% if global_saved %}<div class="flash">Global settings saved.</div>{% endif %}
+  <form method="post" action="/global" style="background:#1e1e3a;border:1px solid #444;border-radius:8px;padding:16px 20px;margin-bottom:24px">
+    <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <label style="margin:0 0 4px">Bot Owner ID</label>
+        <input type="text" name="owner_id" value="{{ global_cfg.get('owner_id', '') }}" placeholder="Right-click your name in Discord → Copy User ID">
+      </div>
+      <button type="submit" class="save-btn" style="margin:0;padding:8px 20px">Save</button>
+    </div>
+    <p class="muted" style="margin:6px 0 0">Enables <code>lucy restart</code> command. Enable Developer Mode in Discord (Settings → Advanced) to copy your user ID.</p>
+  </form>
+
   <form method="get" class="guild-bar">
     <label style="margin:0;white-space:nowrap">Server:</label>
     {% if guilds %}
@@ -460,6 +472,15 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/global", methods=["POST"])
+@login_required
+def save_global_settings():
+    global_cfg = config.load_global()
+    global_cfg["owner_id"] = request.form.get("owner_id", "").strip()
+    config.save_global(global_cfg)
+    return redirect(url_for("index", global_saved=1))
+
+
 @app.route("/", methods=["GET", "POST"])
 @login_required
 def index():
@@ -534,6 +555,8 @@ def index():
         saved=saved,
         user=session["user"],
         available_loras=available_loras,
+        global_cfg=config.load_global(),
+        global_saved=bool(request.args.get("global_saved")),
     )
 
 

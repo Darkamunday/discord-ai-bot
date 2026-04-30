@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+import subprocess
 import sys
 import discord
 from src.llm import improve_prompt, get_inpaint_params, chat, describe_image
@@ -12,6 +13,10 @@ def _owner_id() -> int:
     if stored:
         return int(stored)
     return int(os.getenv("BOT_OWNER_ID", "0"))
+
+def _restart():
+    subprocess.Popen([sys.executable] + sys.argv)
+    os._exit(0)
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -89,7 +94,7 @@ async def on_message(message):
         owner = _owner_id()
         if owner and message.author.id == owner:
             await message.reply("Restarting...")
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+            _restart()
         else:
             await message.reply("You don't have permission to do that.")
         return
@@ -108,7 +113,7 @@ async def on_message(message):
         stdout, _ = await proc.communicate()
         output = stdout.decode().strip()
         await msg.edit(content=f"```\n{output[:1900]}\n```\nRestarting...")
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+        _restart()
         return
 
     is_dm = not message.guild

@@ -256,6 +256,11 @@ TEMPLATE = """<!doctype html>
   // ── chat UI helpers ──────────────────────────────────────────────
   function escape(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function scrollBottom() { const m = document.getElementById('messages'); m.scrollTop = m.scrollHeight; }
+  function openFull(src) {
+    const w = window.open('', '_blank');
+    w.document.write(`<!doctype html><html><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${src}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`);
+    w.document.close();
+  }
   function addBubble(role, html) {
     const msgs = document.getElementById('messages');
     const wrap = document.createElement('div'); wrap.className = 'msg ' + role;
@@ -288,7 +293,7 @@ TEMPLATE = """<!doctype html>
           } else if (ev.image) {
             result.image = ev.image; result.prompt = ev.prompt || null;
             let html = `<img src="data:image/png;base64,${ev.image}" alt="Generated"
-              onclick="window.open(this.src)" title="Click to open full size">`;
+              onclick="openFull(this.src)" title="Click to open full size">`;
             if (ev.prompt) html += `<div class="prompt-caption">${escape(ev.prompt)}</div>`;
             bubble.innerHTML = html;
           } else if (ev.text) {

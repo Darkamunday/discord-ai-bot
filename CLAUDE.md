@@ -116,10 +116,23 @@ discord-ai-bot/
   - Upscale typo tolerance: `upsacle`, `upsale`, `upscal` all trigger upscale
 - `src/web.py`: LoRAs tab — add/remove character LoRAs per guild with trigger, path (dropdown from ComfyUI), strength, prepend; LoRA list fetched live from `GET /object_info/LoraLoader`
 
+### Completed — Step 9: Lucy web app + canvas inpainting
+- `src/webapp.py`: Flask Blueprint at `/app` — chat UI with SSE streaming mirroring bot routing (upscale, restyle, inpaint, describe, txt2img, chat); registered into existing Flask app in `web.py`
+- Canvas mask editor: overlay modal with paint/erase brush, extracts mask at original image resolution via offscreen canvas, POSTs image + mask to `/app/inpaint`
+- `workflows/qwen_inpaint_manual.json`: manual mask workflow — `LoadImage` + `ImageToMask` (channel: red) + `GrowMaskWithBlur` replacing GroundingDINO/SAM nodes
+- `src/comfyui.py`: added `generate_image_manual_inpaint()` uploading both source image and mask to ComfyUI
+- LoRA trigger fix: LoRA trigger words now enter the image branch without needing an explicit image keyword ("lucy klee" now works); prompt_text falls back to full text after prefix when no image keyword present
+- Qwen model path fixed: added `2509` subfolder (`QWEN\Qwen-Image-Edit\2509\...`)
+- ComfyUI poll timeout increased from 4 to 10 minutes (300 × 2s) for large model loads
+- Flask bound to `0.0.0.0` — web app accessible from other machines on local network
+- `WEBAPP_GUILD_ID` in `.env` controls which guild config the web app uses; admin panel at `/` is the control panel for both bot and web app
+- Generated images in web app capped at 420px display height (click to open full size)
+- NSFW prompt: 120-word limit in system prompt + hard 1800-char truncation
+
 ## Next
-Options: outpainting, additional LoRA characters, music generation. Ask user what to tackle next.
+Options: outpainting, additional LoRA characters, music generation, web app auth. Ask user what to tackle next.
 
 ## Deferred
 - ComfyUI auth (open IP, no auth yet — fine for dev, needed before going public)
 - ACE-Step music generation (`lucy give me music of ...`)
-- Discord OAuth login for admin web UI (currently localhost only, no auth)
+- Web app / admin UI auth (now on 0.0.0.0, no login protection)

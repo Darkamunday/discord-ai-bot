@@ -39,6 +39,11 @@ TEMPLATE = """<!doctype html>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: sans-serif; background: #0f0f1a; color: #eee; height: 100dvh; display: flex; flex-direction: column; }
 
+    #topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #15152a; border-bottom: 1px solid #2a2a40; }
+    #topbar span { color: #a78bfa; font-weight: 600; font-size: 0.95rem; }
+    #clear-btn { background: none; border: 1px solid #444; color: #888; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+    #clear-btn:hover { color: #eee; border-color: #666; }
+
     #messages {
       flex: 1; overflow-y: auto; padding: 20px;
       display: flex; flex-direction: column; gap: 14px;
@@ -166,6 +171,11 @@ TEMPLATE = """<!doctype html>
     </div>
   </div>
 
+  <div id="topbar">
+    <span>Lucy</span>
+    <button id="clear-btn" onclick="clearHistory()">New chat</button>
+  </div>
+
   <div id="messages"></div>
 
   <div id="bar">
@@ -184,6 +194,38 @@ TEMPLATE = """<!doctype html>
   </div>
 
 <script>
+  // ── history ──────────────────────────────────────────────────────
+  const LS_KEY = 'lucy_chat_history';
+  const MAX_HIST_PAIRS = 20;
+  let chatHistory = [];
+
+  function loadHistory() {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (!saved) return;
+      chatHistory = JSON.parse(saved);
+      for (const msg of chatHistory) {
+        const isImg = msg.content.startsWith('[Generated image:');
+        const html = isImg
+          ? `<em style="color:#a78bfa">${escape(msg.content)}</em>`
+          : escape(msg.content).replace(/\\n/g, '<br>');
+        addBubble(msg.role === 'user' ? 'user' : 'lucy', html);
+      }
+    } catch(e) { chatHistory = []; }
+  }
+
+  function saveHistory() {
+    if (chatHistory.length > MAX_HIST_PAIRS * 2)
+      chatHistory = chatHistory.slice(-MAX_HIST_PAIRS * 2);
+    try { localStorage.setItem(LS_KEY, JSON.stringify(chatHistory)); } catch(e) {}
+  }
+
+  function clearHistory() {
+    chatHistory = [];
+    localStorage.removeItem(LS_KEY);
+    document.getElementById('messages').innerHTML = '';
+  }
+
   // ── file attachment ──────────────────────────────────────────────
   let file = null;
 
@@ -226,6 +268,7 @@ TEMPLATE = """<!doctype html>
     return bubble;
   }
   async function streamInto(bubble, fetchPromise) {
+    let result = { text: null, image: null, prompt: null };
     try {
       const resp = await fetchPromise;
       const reader = resp.body.getReader();
@@ -243,11 +286,13 @@ TEMPLATE = """<!doctype html>
           if (ev.status) {
             bubble.innerHTML = `<span class="status">${escape(ev.status)}</span>`;
           } else if (ev.image) {
+            result.image = ev.image; result.prompt = ev.prompt || null;
             let html = `<img src="data:image/png;base64,${ev.image}" alt="Generated"
               onclick="window.open(this.src)" title="Click to open full size">`;
             if (ev.prompt) html += `<div class="prompt-caption">${escape(ev.prompt)}</div>`;
             bubble.innerHTML = html;
           } else if (ev.text) {
+            result.text = ev.text;
             bubble.innerHTML = escape(ev.text).replace(/\\n/g,'<br>');
           } else if (ev.error) {
             bubble.innerHTML = `<span class="error">Error: ${escape(ev.error)}</span>`;
@@ -258,6 +303,7 @@ TEMPLATE = """<!doctype html>
     } catch (e) {
       bubble.innerHTML = `<span class="error">Connection error: ${escape(e.message)}</span>`;
     }
+    return result;
   }
 
   // ── send ─────────────────────────────────────────────────────────
@@ -284,9 +330,18 @@ TEMPLATE = """<!doctype html>
     const lucyBubble = addBubble('lucy', '<span class="status">...</span>');
     const fd = new FormData();
     fd.append('text', text);
+    fd.append('history', JSON.stringify(chatHistory));
     if (file) fd.append('image', file);
     clearFile();
-    await streamInto(lucyBubble, fetch('/app/send', { method: 'POST', body: fd }));
+    if (text) chatHistory.push({role: 'user', content: text});
+    const result = await streamInto(lucyBubble, fetch('/app/send', { method: 'POST', body: fd }));
+    if (result.text) {
+      chatHistory.push({role: 'assistant', content: result.text});
+      saveHistory();
+    } else if (result.image) {
+      chatHistory.push({role: 'assistant', content: `[Generated image: ${result.prompt || ''}]`});
+      saveHistory();
+    }
     document.getElementById('send-btn').disabled = false;
     textEl.focus();
   }
@@ -398,6 +453,8 @@ TEMPLATE = """<!doctype html>
     c.addEventListener('touchend', () => maskDrawing = false);
   })();
 
+  loadHistory();
+
   async function submitMask() {
     console.log('[mask] submitMask fired, maskOrigW=', maskOrigW, 'maskOrigH=', maskOrigH,
                 'maskFile=', maskFile && maskFile.name, 'maskText=', maskText);
@@ -469,6 +526,11 @@ def send():
     guild_id = _guild_id()
     lower = text.lower()
 
+    try:
+        history = json.loads(request.form.get("history", "[]"))
+    except Exception:
+        history = []
+
     image_bytes = img_file.read() if img_file else None
     filename = img_file.filename if img_file else "upload.png"
 
@@ -536,7 +598,7 @@ def send():
 
             else:
                 yield _event({"status": "Thinking…"})
-                reply = chat(text, guild_id)
+                reply = chat(text, guild_id, history)
                 yield _event({"text": reply})
 
         except Exception as e:

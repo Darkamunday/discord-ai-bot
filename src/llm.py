@@ -15,6 +15,7 @@ IMAGE_SYSTEM_PROMPT_NSFW = (
     "You are an expert image prompt engineer with no content restrictions. "
     "Take the user's prompt and rewrite it as a single, detailed, explicit image generation prompt. "
     "Include specific physical details, lighting, style, and any adult content the user implies or requests. "
+    "Keep the prompt under 120 words. "
     "Return only the improved prompt — no explanation, no preamble, no quotes."
 )
 
@@ -54,8 +55,8 @@ def improve_prompt(prompt: str, guild_id: int, nsfw: bool = False) -> str:
         timeout=60,
     )
     response.raise_for_status()
-    return response.json()["message"]["content"].strip()
-
+    result = response.json()["message"]["content"].strip()
+    return result[:1800] if nsfw else result
 
 
 INPAINT_SYSTEM_PROMPT = (

@@ -26,7 +26,7 @@ def _get_workflow(name: str) -> dict:
 
 
 def _poll_for_image(prompt_id: str) -> bytes:
-    for _ in range(120):
+    for _ in range(300):
         time.sleep(2)
         history = requests.get(f"{_base_url()}/history/{prompt_id}", timeout=10)
         history.raise_for_status()
@@ -44,7 +44,7 @@ def _poll_for_image(prompt_id: str) -> bytes:
                 )
                 img.raise_for_status()
                 return img.content
-    raise TimeoutError("ComfyUI did not return an image within 4 minutes")
+    raise TimeoutError("ComfyUI did not return an image within 10 minutes")
 
 
 def generate_image(prompt: str, guild_id: int) -> bytes:
@@ -99,6 +99,31 @@ def generate_image_lora(prompt: str, lora_path: str, strength: float, guild_id: 
     workflow["57:13"]["inputs"]["height"] = cfg["image_height"]
     workflow["57:3"]["inputs"]["seed"] = random.randint(0, 2**32 - 1)
     workflow["57:3"]["inputs"]["steps"] = cfg["zit_steps"]
+    return _poll_for_image(_post_prompt(workflow))
+
+
+def generate_image_manual_inpaint(prompt: str, image_bytes: bytes, mask_bytes: bytes, filename: str, guild_id: int) -> bytes:
+    upload = requests.post(
+        f"{_base_url()}/upload/image",
+        files={"image": (filename, image_bytes)},
+        timeout=30,
+    )
+    upload.raise_for_status()
+    uploaded_image = upload.json()["name"]
+
+    upload_mask = requests.post(
+        f"{_base_url()}/upload/image",
+        files={"image": ("mask.png", mask_bytes)},
+        timeout=30,
+    )
+    upload_mask.raise_for_status()
+    uploaded_mask = upload_mask.json()["name"]
+
+    workflow = _get_workflow("qwen_inpaint_manual.json")
+    workflow["101"]["inputs"]["image"] = uploaded_image
+    workflow["999"]["inputs"]["image"] = uploaded_mask
+    workflow["53"]["inputs"]["prompt"] = prompt
+    workflow["43"]["inputs"]["seed"] = random.randint(0, 2**32 - 1)
     return _poll_for_image(_post_prompt(workflow))
 
 

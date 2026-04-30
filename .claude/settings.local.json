@@ -18,7 +18,18 @@
       "WebSearch",
       "Bash(gh api *)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(pkill -f \"python.*main.py\")"
+      "Bash(pkill -f \"python.*main.py\")",
+      "Bash(robocopy \"C:\\\\Projects\\\\discord-ai-bot\" \"C:\\\\Projects\\\\klee-bot\" /E /XD .venv __pycache__ .git /XF .env config.json inpaint_debug.log)",
+      "PowerShell(robocopy \"C:\\\\Projects\\\\discord-ai-bot\" \"C:\\\\Projects\\\\klee-bot\" /E /XD \".venv\" \"__pycache__\" \".git\" /XF \".env\" \"config.json\" \"inpaint_debug.log\"; Write-Host \"Exit: $LASTEXITCODE\")",
+      "PowerShell(Copy-Item *)",
+      "PowerShell(gh repo *)",
+      "Bash(curl -s --connect-timeout 5 http://194.93.48.242:8188/system_stats)",
+      "Bash(curl -s \"http://194.93.48.242:8188/object_info/LoraLoader\")",
+      "Bash(curl -s \"http://194.93.48.242:8188/object_info/SeedVR2LoadDiTModel\")",
+      "Bash(curl -s \"http://194.93.48.242:8188/object_info/SeedVR2LoadVAEModel\")",
+      "Bash(curl -s \"http://194.93.48.242:8188/object_info/GetImageSize%2B\")",
+      "Bash(curl -s \"http://194.93.48.242:8188/object_info/ImageResizeKJv2\")",
+      "Bash(curl -s \"http://194.93.48.242:8188/object_info/JoinImageWithAlpha\")"
     ]
   }
 }

@@ -172,6 +172,7 @@ async def on_message(message):
         any(kw in lower for kw in ("image of", "picture of", "photo of", "draw ", "generate a", "create a"))
         or (re.search(r'\b(image|picture|photo)\b', lower) and bool(re.search(r'\b(raw|exact)\b', lower)))
         or (image_attachments and any(kw in lower for kw in ("change", "make", "turn", "replace", "edit", "modify", "add", "remove", "inpaint", "image of")))
+        or any(l.get("trigger", "").lower() in lower for l in cfg.get("loras", []))
     ):
         IMAGE_KW = ("image of", "picture of", "photo of", "draw ", "generate a", "create a")
         if image_attachments:
@@ -186,8 +187,10 @@ async def on_message(message):
                 prompt_text = content[idx:].strip()
             else:
                 matched_vis = re.search(r'\b(image|picture|photo)\b', lower)
-                idx = matched_vis.end() if matched_vis else len(lower)
-                prompt_text = content[idx:].strip()
+                if matched_vis:
+                    prompt_text = content[matched_vis.end():].strip()
+                else:
+                    prompt_text = content[len(prefix):].strip()
             if not prompt_text:
                 await message.reply("What should the image be of?")
                 return

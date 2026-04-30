@@ -17,9 +17,7 @@
     "_meta": { "title": "Load CLIP" }
   },
   "57": {
-    "inputs": {
-      "vae_name": "QWEN\\qwen_image_vae.safetensors"
-    },
+    "inputs": { "vae_name": "QWEN\\qwen_image_vae.safetensors" },
     "class_type": "VAELoader",
     "_meta": { "title": "Load VAE" }
   },
@@ -39,37 +37,23 @@
     "_meta": { "title": "Power Lora Loader" }
   },
   "101": {
-    "inputs": {
-      "image": "",
-      "upload": "image"
-    },
+    "inputs": { "image": "", "upload": "image" },
     "class_type": "LoadImage",
-    "_meta": { "title": "Load Image" }
+    "_meta": { "title": "Load Source Image" }
   },
-  "200": {
-    "inputs": { "model_name": "GroundingDINO_SwinT_OGC (694MB)" },
-    "class_type": "GroundingDinoModelLoader (segment anything)",
-    "_meta": { "title": "GroundingDINO Loader" }
+  "999": {
+    "inputs": { "image": "", "upload": "image" },
+    "class_type": "LoadImage",
+    "_meta": { "title": "Load Mask Image" }
   },
-  "201": {
-    "inputs": { "model_name": "sam_vit_h (2.56GB)" },
-    "class_type": "SAMModelLoader (segment anything)",
-    "_meta": { "title": "SAM Loader" }
-  },
-  "202": {
-    "inputs": {
-      "sam_model": ["201", 0],
-      "grounding_dino_model": ["200", 0],
-      "image": ["101", 0],
-      "prompt": "",
-      "threshold": 0.05
-    },
-    "class_type": "GroundingDinoSAMSegment (segment anything)",
-    "_meta": { "title": "GroundingDINO SAM Segment" }
+  "998": {
+    "inputs": { "image": ["999", 0], "channel": "red" },
+    "class_type": "ImageToMask",
+    "_meta": { "title": "Image To Mask" }
   },
   "28": {
     "inputs": {
-      "expand": 15,
+      "expand": 2,
       "incremental_expandrate": 0,
       "tapered_corners": false,
       "flip_input": false,
@@ -77,7 +61,7 @@
       "lerp_alpha": 1,
       "decay_factor": 1,
       "fill_holes": false,
-      "mask": ["202", 1]
+      "mask": ["998", 0]
     },
     "class_type": "GrowMaskWithBlur",
     "_meta": { "title": "Grow Mask With Blur" }
@@ -92,40 +76,28 @@
     "_meta": { "title": "TextEncodeQwenImageEditPlus" }
   },
   "20": {
-    "inputs": {
-      "pixels": ["101", 0],
-      "vae": ["57", 0]
-    },
+    "inputs": { "pixels": ["101", 0], "vae": ["57", 0] },
     "class_type": "VAEEncode",
     "_meta": { "title": "VAE Encode" }
   },
   "22": {
-    "inputs": {
-      "samples": ["20", 0],
-      "mask": ["28", 0]
-    },
+    "inputs": { "samples": ["20", 0], "mask": ["28", 0] },
     "class_type": "SetLatentNoiseMask",
     "_meta": { "title": "Set Latent Noise Mask" }
   },
   "21": {
-    "inputs": {
-      "conditioning": ["53", 0],
-      "latent": ["22", 0]
-    },
+    "inputs": { "conditioning": ["53", 0], "latent": ["22", 0] },
     "class_type": "ReferenceLatent",
     "_meta": { "title": "ReferenceLatent" }
   },
   "23": {
-    "inputs": {
-      "shift": 3,
-      "model": ["54", 0]
-    },
+    "inputs": { "shift": 3, "model": ["54", 0] },
     "class_type": "ModelSamplingAuraFlow",
     "_meta": { "title": "ModelSamplingAuraFlow" }
   },
   "43": {
     "inputs": {
-      "seed": 163263055840374,
+      "seed": 0,
       "steps": 8,
       "cfg": 1,
       "sampler_name": "euler",
@@ -140,18 +112,13 @@
     "_meta": { "title": "KSampler" }
   },
   "19": {
-    "inputs": {
-      "samples": ["43", 0],
-      "vae": ["57", 0]
-    },
+    "inputs": { "samples": ["43", 0], "vae": ["57", 0] },
     "class_type": "VAEDecode",
     "_meta": { "title": "VAE Decode" }
   },
   "24": {
     "inputs": {
-      "x": 0,
-      "y": 0,
-      "resize_source": false,
+      "x": 0, "y": 0, "resize_source": false,
       "destination": ["101", 0],
       "source": ["19", 0],
       "mask": ["28", 0]
@@ -160,10 +127,7 @@
     "_meta": { "title": "ImageCompositeMasked" }
   },
   "45": {
-    "inputs": {
-      "filename_prefix": "ComfyUI",
-      "images": ["24", 0]
-    },
+    "inputs": { "filename_prefix": "ComfyUI", "images": ["24", 0] },
     "class_type": "SaveImage",
     "_meta": { "title": "Save Image" }
   }

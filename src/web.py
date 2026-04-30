@@ -9,6 +9,9 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(32))
 app.jinja_env.filters["enumerate"] = enumerate
 
+from src.webapp import bp as webapp_bp
+app.register_blueprint(webapp_bp)
+
 DISCORD_API = "https://discord.com/api/v10"
 OAUTH_AUTHORIZE = "https://discord.com/oauth2/authorize"
 OAUTH_TOKEN = "https://discord.com/api/oauth2/token"
@@ -535,4 +538,4 @@ def index():
 
 
 def run():
-    app.run(host="127.0.0.1", port=5000, use_reloader=False)
+    app.run(host="0.0.0.0", port=5000, use_reloader=False)

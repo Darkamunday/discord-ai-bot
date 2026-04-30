@@ -1,9 +1,13 @@
 import asyncio
+import os
 import re
+import sys
 import discord
 from src.llm import improve_prompt, get_inpaint_params, chat, describe_image
 from src.comfyui import generate_image, generate_image_lora, generate_image_qwen_inpaint, generate_image_upscale, generate_image_flux2_i2i
 from src import config, state
+
+OWNER_ID = int(os.getenv("BOT_OWNER_ID", "0"))
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -65,6 +69,14 @@ async def on_guild_remove(guild):
 @client.event
 async def on_message(message):
     if message.author == client.user:
+        return
+
+    if message.content.strip().lower() in ("lucy restart", "lucy reboot"):
+        if OWNER_ID and message.author.id == OWNER_ID:
+            await message.reply("Restarting...")
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        else:
+            await message.reply("You don't have permission to do that.")
         return
 
     is_dm = not message.guild

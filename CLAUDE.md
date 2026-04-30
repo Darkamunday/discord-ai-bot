@@ -102,10 +102,24 @@ discord-ai-bot/
 - `src/web.py`: model selector in Image Generation tab (Juggernaut/Schnell/Dev with conditional fields); NSFW model field in Language Model tab; Discord OAuth2 login added
 - Models: `flux1-dev.safetensors`, `flux1-schnell.safetensors`, `ae.safetensors`, `clip_l.safetensors`, `t5xxl_fp16.safetensors` on ComfyUI machine; `dolphin-mistral` via Ollama for NSFW prompts
 
-## Next — Step 8
-Options: LoRA support, outpainting, additional edit types. Ask user what to tackle next.
+### Completed — Step 8: ZIT model + per-guild LoRA support
+- `workflows/zit_t2i.json`: Z Image Turbo text-to-image workflow (8 steps, qwen_3_4b CLIP, ae VAE)
+- `workflows/zit_klee.json`: ZIT + Power Lora Loader (rgthree) for LoRA-based character generation
+- `src/config.py`: default model changed to `zit`; added `zit_steps` (default 8) and `loras` (default `[]`) per-guild config keys
+- `src/comfyui.py`: `COMFYUI_BASE_URL` now read dynamically per-call via `_base_url()` — IP changes in `.env` take effect immediately without restart; `_post_prompt()` helper surfaces ComfyUI error body on 400; `generate_image_lora()` injects LoRA path + strength dynamically into `zit_klee.json`
+- `src/bot.py`:
+  - Image trigger phrases expanded: `image of`, `picture of`, `photo of`, `draw`, `create a`, `generate a`
+  - LoRA routing: detects configured trigger words per guild, strips trigger before LLM improvement, prepends trigger text after (e.g. `klee woman, <improved prompt>`)
+  - NSFW + LoRA: strips LoRA trigger before NSFW model, re-prepends after — prevents Genshin character bleed
+  - `is_describe` routing: image attachments without edit-intent keywords → `describe_image` instead of crashing inpaint pipeline
+  - All Discord message edits capped at 2000 chars
+  - Upscale typo tolerance: `upsacle`, `upsale`, `upscal` all trigger upscale
+- `src/web.py`: LoRAs tab — add/remove character LoRAs per guild with trigger, path (dropdown from ComfyUI), strength, prepend; LoRA list fetched live from `GET /object_info/LoraLoader`
+
+## Next
+Options: outpainting, additional LoRA characters, music generation. Ask user what to tackle next.
 
 ## Deferred
-- ComfyUI auth (open IP `194.93.48.43:8188`, no auth yet — fine for dev, needed before going public)
+- ComfyUI auth (open IP, no auth yet — fine for dev, needed before going public)
 - ACE-Step music generation (`lucy give me music of ...`)
 - Discord OAuth login for admin web UI (currently localhost only, no auth)

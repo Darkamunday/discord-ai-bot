@@ -2,7 +2,7 @@ import asyncio
 import re
 import discord
 from src.llm import improve_prompt, get_inpaint_params, chat, describe_image
-from src.comfyui import generate_image, generate_image_qwen_inpaint, generate_image_upscale, generate_image_flux2_i2i
+from src.comfyui import generate_image, generate_image_lora, generate_image_qwen_inpaint, generate_image_upscale, generate_image_flux2_i2i
 from src import config, state
 
 intents = discord.Intents.default()
@@ -103,8 +103,12 @@ async def on_message(message):
                 async def read(self): return stored["bytes"]
             image_attachments = [_Recalled()]
 
+    edit_keywords = ("change", "make", "turn", "replace", "edit", "modify", "add", "remove", "inpaint", "image of", "picture of", "photo of", "draw ", "generate a", "create a")
     describe_keywords = ("describe", "analys", "analyze", "what is", "what's in", "whats in")
-    is_describe = image_attachments and any(kw in lower for kw in describe_keywords)
+    is_describe = image_attachments and (
+        any(kw in lower for kw in describe_keywords)
+        or not any(kw in lower for kw in edit_keywords)
+    )
 
     if is_describe:
         attachment = image_attachments[0]
@@ -116,9 +120,9 @@ async def on_message(message):
                 description = await asyncio.get_event_loop().run_in_executor(
                     None, describe_image, attachment_bytes, user_prompt, guild_id
                 )
-            await msg.edit(content=description)
+            await msg.edit(content=description[:2000])
         except Exception as e:
-            await msg.edit(content=f"Error: {e}")
+            await msg.edit(content=f"Error: {e}"[:1990])
 
     elif any(kw in lower for kw in ("restyle", "remix", "variation")) and image_attachments:
         attachment = image_attachments[0]
@@ -146,9 +150,9 @@ async def on_message(message):
             )
             await msg.delete()
         except Exception as e:
-            await msg.edit(content=f"Error: {e}")
+            await msg.edit(content=f"Error: {e}"[:1990])
 
-    elif "upscale" in lower and image_attachments:
+    elif any(kw in lower for kw in ("upscale", "upsacle", "upsale", "upscal")) and image_attachments:
         attachment = image_attachments[0]
         msg = await message.reply("Upscaling...")
         try:
@@ -162,23 +166,28 @@ async def on_message(message):
             )
             await msg.delete()
         except Exception as e:
-            await msg.edit(content=f"Error: {e}")
+            await msg.edit(content=f"Error: {e}"[:1990])
 
-    elif "image of" in lower or image_attachments or (re.search(r'\bimage\b', lower) and bool(re.search(r'\b(raw|exact)\b', lower))):
+    elif (
+        any(kw in lower for kw in ("image of", "picture of", "photo of", "draw ", "generate a", "create a"))
+        or (re.search(r'\b(image|picture|photo)\b', lower) and bool(re.search(r'\b(raw|exact)\b', lower)))
+        or (image_attachments and any(kw in lower for kw in ("change", "make", "turn", "replace", "edit", "modify", "add", "remove", "inpaint", "image of")))
+    ):
+        IMAGE_KW = ("image of", "picture of", "photo of", "draw ", "generate a", "create a")
         if image_attachments:
             prompt_text = content[len(prefix):].strip()
             if not prompt_text:
                 await message.reply("Describe what to do with the image.")
                 return
-        elif "image of" in lower:
-            idx = lower.index("image of") + len("image of")
-            prompt_text = content[idx:].strip()
-            if not prompt_text:
-                await message.reply("What should the image be of?")
-                return
         else:
-            idx = lower.index("image") + len("image")
-            prompt_text = content[idx:].strip()
+            matched_kw = next((kw for kw in IMAGE_KW if kw in lower), None)
+            if matched_kw:
+                idx = lower.index(matched_kw) + len(matched_kw)
+                prompt_text = content[idx:].strip()
+            else:
+                matched_vis = re.search(r'\b(image|picture|photo)\b', lower)
+                idx = matched_vis.end() if matched_vis else len(lower)
+                prompt_text = content[idx:].strip()
             if not prompt_text:
                 await message.reply("What should the image be of?")
                 return
@@ -206,17 +215,37 @@ async def on_message(message):
                         None, generate_image_qwen_inpaint, improved, mask_subject, attachment_bytes, attachment.filename, guild_id
                     )
             else:
+                matched_lora = next(
+                    (l for l in cfg.get("loras", []) if l.get("trigger", "").lower() in lower),
+                    None
+                )
                 if raw:
                     improved = prompt_text
+                elif matched_lora:
+                    trigger = matched_lora.get("trigger", "")
+                    clean = re.sub(rf'\b{re.escape(trigger)}\b', '', prompt_text, flags=re.IGNORECASE).strip()
+                    improved = await asyncio.get_event_loop().run_in_executor(
+                        None, improve_prompt, clean, guild_id, nsfw
+                    )
                 else:
                     improved = await asyncio.get_event_loop().run_in_executor(
                         None, improve_prompt, prompt_text, guild_id, nsfw
                     )
+                if matched_lora:
+                    prepend = matched_lora.get("prepend", "").strip()
+                    if prepend:
+                        improved = f"{prepend}, {improved}"
                 await msg.edit(content=f"Generating image for: *{improved}*")
                 async with message.channel.typing():
-                    image_bytes = await asyncio.get_event_loop().run_in_executor(
-                        None, generate_image, improved, guild_id
-                    )
+                    if matched_lora:
+                        image_bytes = await asyncio.get_event_loop().run_in_executor(
+                            None, generate_image_lora, improved,
+                            matched_lora.get("lora", ""), matched_lora.get("strength", 1.0), guild_id
+                        )
+                    else:
+                        image_bytes = await asyncio.get_event_loop().run_in_executor(
+                            None, generate_image, improved, guild_id
+                        )
 
             state.last_images[message.channel.id] = {"bytes": image_bytes, "filename": "image.png"}
             await message.channel.send(
@@ -225,7 +254,7 @@ async def on_message(message):
             )
             await msg.delete()
         except Exception as e:
-            await msg.edit(content=f"Error: {e}")
+            await msg.edit(content=f"Error: {e}"[:1990])
     else:
         user_message = content[len(prefix):].strip() if content.lower().startswith(prefix) else content.strip()
         history = await _build_history(message, prefix)
@@ -234,6 +263,6 @@ async def on_message(message):
             reply = await asyncio.get_event_loop().run_in_executor(
                 None, chat, user_message, guild_id, history
             )
-            await msg.edit(content=reply)
+            await msg.edit(content=reply[:2000])
         except Exception as e:
-            await msg.edit(content=f"Error: {e}")
+            await msg.edit(content=f"Error: {e}"[:1990])

@@ -6,7 +6,14 @@ import time
 import requests
 from src import config
 
-COMFYUI_BASE_URL = os.getenv("COMFYUI_BASE_URL", "http://localhost:8188")
+def _base_url() -> str:
+    return os.getenv("COMFYUI_BASE_URL", "http://localhost:8188")
+
+def _post_prompt(workflow: dict) -> str:
+    resp = requests.post(f"{_base_url()}/prompt", json={"prompt": workflow}, timeout=30)
+    if not resp.ok:
+        raise RuntimeError(f"ComfyUI {resp.status_code}: {resp.text}")
+    return resp.json()["prompt_id"]
 
 _WORKFLOWS_DIR = os.path.join(os.path.dirname(__file__), "..", "workflows")
 
@@ -21,7 +28,7 @@ def _get_workflow(name: str) -> dict:
 def _poll_for_image(prompt_id: str) -> bytes:
     for _ in range(120):
         time.sleep(2)
-        history = requests.get(f"{COMFYUI_BASE_URL}/history/{prompt_id}", timeout=10)
+        history = requests.get(f"{_base_url()}/history/{prompt_id}", timeout=10)
         history.raise_for_status()
         data = history.json()
         if prompt_id not in data:
@@ -31,7 +38,7 @@ def _poll_for_image(prompt_id: str) -> bytes:
             if "images" in node_output:
                 image_info = node_output["images"][0]
                 img = requests.get(
-                    f"{COMFYUI_BASE_URL}/view",
+                    f"{_base_url()}/view",
                     params={"filename": image_info["filename"], "subfolder": image_info["subfolder"], "type": image_info["type"]},
                     timeout=30,
                 )
@@ -44,7 +51,14 @@ def generate_image(prompt: str, guild_id: int) -> bytes:
     cfg = config.load(guild_id)
     model = cfg.get("txt2img_model", "juggernaut")
 
-    if model == "flux2_klein":
+    if model == "zit":
+        workflow = _get_workflow("zit_t2i.json")
+        workflow["57:27"]["inputs"]["text"] = prompt
+        workflow["57:13"]["inputs"]["width"] = cfg["image_width"]
+        workflow["57:13"]["inputs"]["height"] = cfg["image_height"]
+        workflow["57:3"]["inputs"]["seed"] = random.randint(0, 2**32 - 1)
+        workflow["57:3"]["inputs"]["steps"] = cfg["zit_steps"]
+    elif model == "flux2_klein":
         workflow = _get_workflow("flux2_t2i.json")
         workflow["76"]["inputs"]["value"] = prompt
         workflow["77:88"]["inputs"]["value"] = cfg["image_width"]
@@ -71,15 +85,26 @@ def generate_image(prompt: str, guild_id: int) -> bytes:
         workflow["5"]["inputs"]["cfg"] = cfg["image_cfg"]
         workflow["5"]["inputs"]["seed"] = random.randint(0, 2**32 - 1)
 
-    resp = requests.post(f"{COMFYUI_BASE_URL}/prompt", json={"prompt": workflow}, timeout=30)
-    resp.raise_for_status()
-    return _poll_for_image(resp.json()["prompt_id"])
+    return _poll_for_image(_post_prompt(workflow))
 
+
+
+def generate_image_lora(prompt: str, lora_path: str, strength: float, guild_id: int) -> bytes:
+    cfg = config.load(guild_id)
+    workflow = _get_workflow("zit_klee.json")
+    workflow["57:27"]["inputs"]["text"] = prompt
+    workflow["57:62"]["inputs"]["lora_1"]["lora"] = lora_path
+    workflow["57:62"]["inputs"]["lora_1"]["strength"] = strength
+    workflow["57:13"]["inputs"]["width"] = cfg["image_width"]
+    workflow["57:13"]["inputs"]["height"] = cfg["image_height"]
+    workflow["57:3"]["inputs"]["seed"] = random.randint(0, 2**32 - 1)
+    workflow["57:3"]["inputs"]["steps"] = cfg["zit_steps"]
+    return _poll_for_image(_post_prompt(workflow))
 
 
 def generate_image_qwen_inpaint(prompt: str, mask_subject: str, image_bytes: bytes, filename: str, guild_id: int) -> bytes:
     upload = requests.post(
-        f"{COMFYUI_BASE_URL}/upload/image",
+        f"{_base_url()}/upload/image",
         files={"image": (filename, image_bytes)},
         timeout=30,
     )
@@ -96,14 +121,12 @@ def generate_image_qwen_inpaint(prompt: str, mask_subject: str, image_bytes: byt
     workflow["53"]["inputs"]["prompt"] = prompt
     workflow["43"]["inputs"]["seed"] = random.randint(0, 2**32 - 1)
 
-    resp = requests.post(f"{COMFYUI_BASE_URL}/prompt", json={"prompt": workflow}, timeout=30)
-    resp.raise_for_status()
-    return _poll_for_image(resp.json()["prompt_id"])
+    return _poll_for_image(_post_prompt(workflow))
 
 
 def generate_image_upscale(image_bytes: bytes, filename: str, guild_id: int) -> bytes:
     upload = requests.post(
-        f"{COMFYUI_BASE_URL}/upload/image",
+        f"{_base_url()}/upload/image",
         files={"image": (filename, image_bytes)},
         timeout=30,
     )
@@ -117,15 +140,13 @@ def generate_image_upscale(image_bytes: bytes, filename: str, guild_id: int) -> 
     workflow["185"]["inputs"]["resolution"] = cfg["upscale_resolution"]
     workflow["185"]["inputs"]["color_correction"] = cfg["upscale_color_correction"]
 
-    resp = requests.post(f"{COMFYUI_BASE_URL}/prompt", json={"prompt": workflow}, timeout=30)
-    resp.raise_for_status()
-    return _poll_for_image(resp.json()["prompt_id"])
+    return _poll_for_image(_post_prompt(workflow))
 
 
 
 def generate_image_flux2_i2i(prompt: str, image_bytes: bytes, filename: str, guild_id: int) -> bytes:
     upload = requests.post(
-        f"{COMFYUI_BASE_URL}/upload/image",
+        f"{_base_url()}/upload/image",
         files={"image": (filename, image_bytes)},
         timeout=30,
     )
@@ -140,6 +161,4 @@ def generate_image_flux2_i2i(prompt: str, image_bytes: bytes, filename: str, gui
     workflow["75:62"]["inputs"]["steps"] = cfg["flux2_i2i_steps"]
     workflow["75:63"]["inputs"]["cfg"] = cfg["flux2_i2i_cfg"]
 
-    resp = requests.post(f"{COMFYUI_BASE_URL}/prompt", json={"prompt": workflow}, timeout=30)
-    resp.raise_for_status()
-    return _poll_for_image(resp.json()["prompt_id"])
+    return _poll_for_image(_post_prompt(workflow))

@@ -9,9 +9,12 @@ All triggers start with `lucy` (configurable per server). In DMs, no prefix is n
 ### Text to image
 ```
 lucy image of <prompt>
-lucy i want an image of <prompt>
+lucy picture of <prompt>
+lucy create a <prompt>
+lucy draw <prompt>
+lucy generate a <prompt>
 ```
-The prompt is automatically improved by the LLM before generation. Uses FLUX.2 Klein by default.
+The prompt is automatically improved by the LLM before generation. Uses Z Image Turbo by default.
 
 ### Image generation flags
 | Flag | Effect |
@@ -21,16 +24,27 @@ The prompt is automatically improved by the LLM before generation. Uses FLUX.2 K
 
 ```
 lucy image of a red sports car raw
-lucy image of <prompt> nsfw
+lucy create a picture nsfw
 ```
 Flags can appear anywhere in the message.
+
+### LoRA character triggers
+Configure trigger words per server in the admin UI. When a trigger is detected the bot:
+1. Strips the trigger word before LLM improvement (prevents character bleed)
+2. Routes generation through the LoRA workflow
+3. Prepends the configured text (e.g. `klee woman`) to the improved prompt
+
+```
+lucy image of klee in a red dress
+lucy nsfw picture of klee at the beach
+```
 
 ### Inpainting (attach an image)
 ```
 lucy change the hair to blue  [+ image attachment]
 lucy make the jacket red      [+ image attachment]
 ```
-Automatically detects and masks the target region using GroundingDINO + SAM, then inpaints with Qwen Image Edit. Add `raw` to skip LLM prompt parsing and pass your instruction directly.
+Automatically detects and masks the target region using GroundingDINO + SAM, then inpaints with Qwen Image Edit. Add `raw` to skip LLM prompt parsing.
 
 ### Restyle / remix (attach an image)
 ```
@@ -38,7 +52,7 @@ lucy restyle this as anime          [+ image attachment]
 lucy remix into a cyberpunk scene   [+ image attachment]
 lucy variation                      [+ image attachment]
 ```
-Whole-image transformation using FLUX.2 Klein i2i. Add `raw` or `nsfw` as needed.
+Whole-image transformation using FLUX.2 i2i. Add `raw` or `nsfw` as needed.
 
 ### Describe / analyse an image (attach an image)
 ```
@@ -47,7 +61,7 @@ lucy analyse this                   [+ image attachment]
 lucy what is in this image          [+ image attachment]
 lucy what's in this                 [+ image attachment]
 ```
-Sends the image to the configured vision model (gemma3:12b by default).
+Any image sent without an explicit edit keyword also routes here — Lucy will answer questions about the image.
 
 ### Upscale (attach an image)
 ```
@@ -81,11 +95,12 @@ Reply directly to any of Lucy's messages to continue the conversation with full 
 - Python 3.11+
 - [Ollama](https://ollama.com/) running locally with your chosen models pulled
 - ComfyUI on a remote machine with the following models:
-  - `flux-2-klein-9b-fp8.safetensors` + `qwen_3_8b_fp8mixed.safetensors` + `full_encoder_small_decoder.safetensors` (FLUX.2 Klein)
+  - `z_image_turbo_bf16.safetensors` + `qwen_3_4b.safetensors` + `ae.safetensors` (Z Image Turbo — default)
   - Qwen Image Edit fp8 + Lightning LoRA + Qwen2.5-VL 7B fp8 CLIP (inpainting)
   - `seedvr2_ema_7b_sharp_fp16.safetensors` + `ema_vae_fp16.safetensors` (upscaling)
   - GroundingDINO SwinT + SAM ViT-H (auto-masking)
-  - Custom nodes: [comfyui_segment_anything](https://github.com/storyicon/comfyui_segment_anything)
+  - Any LoRA `.safetensors` files placed in ComfyUI's models folder
+  - Custom nodes: [comfyui_segment_anything](https://github.com/storyicon/comfyui_segment_anything), Power Lora Loader (rgthree)
 
 ## Setup
 
@@ -107,8 +122,9 @@ A Flask admin panel runs at `http://localhost:5000` — configure per-guild sett
 
 - **Bot** — trigger prefix
 - **Language Model** — Ollama model, inpaint model, vision model, NSFW model, system prompt
-- **Image Generation** — model selector (FLUX.2 Klein / Juggernaut XL / FLUX.1), dimensions, steps, CFG
+- **Image Generation** — model selector (Z Image Turbo / Juggernaut XL / FLUX.1 Schnell / FLUX.1 Dev), dimensions, steps
 - **Flux2 Restyle** — steps and CFG for the i2i restyle pipeline
+- **LoRAs** — add/remove character LoRAs per server: trigger word, LoRA path (dropdown from ComfyUI), strength, prepend text
 - **Inpainting** — GroundingDINO threshold, mask expand, blur radius
 - **Upscaling** — output resolution, colour correction mode
 - **Channels** — restrict Lucy to specific channels (empty = all channels)

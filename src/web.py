@@ -7,6 +7,7 @@ from src import config, state
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(32))
+app.jinja_env.filters["enumerate"] = enumerate
 
 DISCORD_API = "https://discord.com/api/v10"
 OAUTH_AUTHORIZE = "https://discord.com/oauth2/authorize"
@@ -15,6 +16,14 @@ REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI", "http://127.0.0.1:5000/callback
 CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "")
 CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "")
 ADMINISTRATOR = 0x8
+
+
+def _fetch_loras() -> list:
+    try:
+        r = http.get(f"{os.getenv('COMFYUI_BASE_URL', 'http://localhost:8188')}/object_info/LoraLoader", timeout=5)
+        return r.json()["LoraLoader"]["input"]["required"]["lora_name"][0]
+    except Exception:
+        return []
 
 
 def _is_admin_in_bot_guilds(user_guilds: list) -> bool:
@@ -158,6 +167,7 @@ TEMPLATE = """
         <button type="button" class="tab-btn" onclick="showTab('flux2i2i', this)">Flux2 Restyle</button>
         <button type="button" class="tab-btn" onclick="showTab('inpaint', this)">Inpainting</button>
         <button type="button" class="tab-btn" onclick="showTab('upscale', this)">Upscaling</button>
+        <button type="button" class="tab-btn" onclick="showTab('loras', this)">LoRAs</button>
         <button type="button" class="tab-btn" onclick="showTab('channels', this)">Channels</button>
       </div>
 
@@ -185,7 +195,7 @@ TEMPLATE = """
       <div id="tab-imggen" class="tab-panel">
         <label>Model</label>
         <select name="txt2img_model" id="model-select" onchange="updateModelFields()">
-          {% for val, label in [("flux2_klein", "FLUX.2 Klein"), ("juggernaut", "Juggernaut XL"), ("flux_schnell", "FLUX.1 Schnell"), ("flux_dev", "FLUX.1 Dev")] %}
+          {% for val, label in [("zit", "Z Image Turbo"), ("juggernaut", "Juggernaut XL"), ("flux_schnell", "FLUX.1 Schnell"), ("flux_dev", "FLUX.1 Dev"), ("flux2_klein", "FLUX.2 Klein")] %}
             <option value="{{ val }}" {% if cfg.txt2img_model == val %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
@@ -193,6 +203,12 @@ TEMPLATE = """
         <div class="row" style="margin-top:12px">
           <div><label>Width</label><input type="number" name="image_width" value="{{ cfg.image_width }}"></div>
           <div><label>Height</label><input type="number" name="image_height" value="{{ cfg.image_height }}"></div>
+        </div>
+
+        <div id="zit-fields">
+          <div class="row">
+            <div><label>Steps</label><input type="number" name="zit_steps" value="{{ cfg.zit_steps }}"><p class="muted">8 recommended</p></div>
+          </div>
         </div>
 
         <div id="juggernaut-fields">
@@ -263,6 +279,44 @@ TEMPLATE = """
         </div>
       </div>
 
+      <div id="tab-loras" class="tab-panel">
+        <p class="muted" style="margin:0 0 12px">Each trigger word activates a LoRA via the ZIT workflow. The trigger is stripped before prompt improvement, then the prepend text is added back.</p>
+        <table style="width:100%;border-collapse:collapse" id="lora-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;color:#aaa;font-size:0.85rem;padding:4px 8px">Trigger</th>
+              <th style="text-align:left;color:#aaa;font-size:0.85rem;padding:4px 8px">LoRA path</th>
+              <th style="text-align:left;color:#aaa;font-size:0.85rem;padding:4px 8px">Strength</th>
+              <th style="text-align:left;color:#aaa;font-size:0.85rem;padding:4px 8px">Prepend</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="lora-rows">
+            {% for i, l in cfg.loras | enumerate %}
+            <tr>
+              <td style="padding:4px 8px"><input type="text" name="lora_trigger_{{ i }}" value="{{ l.trigger }}" style="width:100%"></td>
+              <td style="padding:4px 8px">
+                {% if available_loras %}
+                <select name="lora_path_{{ i }}" style="width:100%">
+                  {% for path in available_loras %}
+                  <option value="{{ path }}" {% if path == l.lora %}selected{% endif %}>{{ path }}</option>
+                  {% endfor %}
+                </select>
+                {% else %}
+                <input type="text" name="lora_path_{{ i }}" value="{{ l.lora }}" style="width:100%">
+                {% endif %}
+              </td>
+              <td style="padding:4px 8px"><input type="number" step="0.1" min="0" max="2" name="lora_strength_{{ i }}" value="{{ l.strength }}" style="width:80px"></td>
+              <td style="padding:4px 8px"><input type="text" name="lora_prepend_{{ i }}" value="{{ l.prepend }}" style="width:100%"></td>
+              <td style="padding:4px 8px"><button type="button" onclick="removeLora(this)" style="background:#7f1d1d;color:#fca5a5;border:none;border-radius:4px;padding:4px 10px;cursor:pointer">✕</button></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <input type="hidden" name="lora_count" id="lora-count" value="{{ cfg.loras | length }}">
+        <button type="button" onclick="addLora()" style="margin-top:12px;background:#1e3a5f;color:#93c5fd;border:1px solid #2563eb;border-radius:6px;padding:6px 16px;cursor:pointer">+ Add LoRA</button>
+      </div>
+
       <div id="tab-channels" class="tab-panel">
         <p class="muted" style="margin:0 0 12px">None selected = respond in all channels.</p>
         {% if guild_channels %}
@@ -285,8 +339,32 @@ TEMPLATE = """
   {% endif %}
 
   <script>
+    const AVAILABLE_LORAS = {{ available_loras | tojson }};
+    function _loraPathField(i) {
+      if (AVAILABLE_LORAS.length === 0) return `<input type="text" name="lora_path_${i}" value="" style="width:100%">`;
+      const opts = AVAILABLE_LORAS.map(p => `<option value="${p}">${p}</option>`).join('');
+      return `<select name="lora_path_${i}" style="width:100%">${opts}</select>`;
+    }
+    function addLora() {
+      const tbody = document.getElementById('lora-rows');
+      const i = parseInt(document.getElementById('lora-count').value);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="padding:4px 8px"><input type="text" name="lora_trigger_${i}" value="" style="width:100%"></td>
+        <td style="padding:4px 8px">${_loraPathField(i)}</td>
+        <td style="padding:4px 8px"><input type="number" step="0.1" min="0" max="2" name="lora_strength_${i}" value="1" style="width:80px"></td>
+        <td style="padding:4px 8px"><input type="text" name="lora_prepend_${i}" value="" style="width:100%"></td>
+        <td style="padding:4px 8px"><button type="button" onclick="removeLora(this)" style="background:#7f1d1d;color:#fca5a5;border:none;border-radius:4px;padding:4px 10px;cursor:pointer">✕</button></td>`;
+      tbody.appendChild(tr);
+      document.getElementById('lora-count').value = i + 1;
+    }
+    function removeLora(btn) {
+      btn.closest('tr').remove();
+    }
+
     function updateModelFields() {
       const m = document.getElementById('model-select').value;
+      document.getElementById('zit-fields').style.display = m === 'zit' ? '' : 'none';
       document.getElementById('juggernaut-fields').style.display = m === 'juggernaut' ? '' : 'none';
       document.getElementById('flux2-klein-fields').style.display = m === 'flux2_klein' ? '' : 'none';
       document.getElementById('flux-dev-fields').style.display = m === 'flux_dev' ? '' : 'none';
@@ -405,6 +483,7 @@ def index():
         cfg["image_cfg"] = float(request.form.get("image_cfg", 6.0))
         cfg["flux_steps"] = int(request.form.get("flux_steps", 20))
         cfg["flux_guidance"] = float(request.form.get("flux_guidance", 3.5))
+        cfg["zit_steps"] = int(request.form.get("zit_steps", 8))
         cfg["flux2_t2i_steps"] = int(request.form.get("flux2_t2i_steps", 4))
         cfg["flux2_t2i_cfg"] = float(request.form.get("flux2_t2i_cfg", 1))
         cfg["flux2_i2i_steps"] = int(request.form.get("flux2_i2i_steps", 4))
@@ -414,6 +493,17 @@ def index():
         cfg["inpaint_blur_radius"] = int(request.form["inpaint_blur_radius"])
         cfg["upscale_resolution"] = int(request.form["upscale_resolution"])
         cfg["upscale_color_correction"] = request.form["upscale_color_correction"].strip()
+        lora_count = int(request.form.get("lora_count", 0))
+        cfg["loras"] = [
+            {
+                "trigger": request.form.get(f"lora_trigger_{i}", "").strip().lower(),
+                "lora": request.form.get(f"lora_path_{i}", "").strip(),
+                "strength": float(request.form.get(f"lora_strength_{i}", 1.0)),
+                "prepend": request.form.get(f"lora_prepend_{i}", "").strip(),
+            }
+            for i in range(lora_count)
+            if request.form.get(f"lora_trigger_{i}", "").strip()
+        ]
         cfg["allowed_channels"] = [int(v) for v in request.form.getlist("allowed_channels")]
         config.save(guild_id, cfg)
         saved = True
@@ -429,6 +519,8 @@ def index():
         match = next((g for g in guilds if g["id"] == selected_guild_id), None)
         selected_guild_name = match["name"] if match else ""
 
+    available_loras = _fetch_loras()
+
     return render_template_string(
         TEMPLATE,
         guilds=guilds,
@@ -438,6 +530,7 @@ def index():
         guild_channels=guild_channels,
         saved=saved,
         user=session["user"],
+        available_loras=available_loras,
     )
 
 

@@ -75,6 +75,16 @@ async def on_message(message):
     if message.author == client.user:
         return
 
+    if message.content.strip().lower() == "lucy claimowner":
+        if _owner_id():
+            await message.reply("An owner is already set.")
+        else:
+            global_cfg = config.load_global()
+            global_cfg["owner_id"] = str(message.author.id)
+            config.save_global(global_cfg)
+            await message.reply(f"Owner set to {message.author.display_name}. This command is now disabled.")
+        return
+
     if message.content.strip().lower() in ("lucy restart", "lucy reboot"):
         owner = _owner_id()
         if owner and message.author.id == owner:

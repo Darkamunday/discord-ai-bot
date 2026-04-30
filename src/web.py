@@ -15,7 +15,8 @@ app.register_blueprint(webapp_bp)
 DISCORD_API = "https://discord.com/api/v10"
 OAUTH_AUTHORIZE = "https://discord.com/oauth2/authorize"
 OAUTH_TOKEN = "https://discord.com/api/oauth2/token"
-REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI", "http://127.0.0.1:5000/callback")
+def _redirect_uri():
+    return f"http://{request.host}/callback"
 CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "")
 CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "")
 ADMINISTRATOR = 0x8
@@ -422,7 +423,7 @@ def login():
     session["oauth_state"] = state_token
     auth_url = (
         f"{OAUTH_AUTHORIZE}?client_id={CLIENT_ID}"
-        f"&redirect_uri={REDIRECT_URI}"
+        f"&redirect_uri={_redirect_uri()}"
         f"&response_type=code"
         f"&scope=identify+guilds"
         f"&state={state_token}"
@@ -444,7 +445,7 @@ def callback():
         "client_secret": CLIENT_SECRET,
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": REDIRECT_URI,
+        "redirect_uri": _redirect_uri(),
     }, headers={"Content-Type": "application/x-www-form-urlencoded"}, timeout=10)
 
     if not token_resp.ok:

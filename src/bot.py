@@ -84,6 +84,23 @@ async def on_message(message):
             await message.reply("You don't have permission to do that.")
         return
 
+    if message.content.strip().lower() == "lucy update":
+        owner = _owner_id()
+        if not (owner and message.author.id == owner):
+            await message.reply("You don't have permission to do that.")
+            return
+        msg = await message.reply("Pulling latest changes...")
+        proc = await asyncio.create_subprocess_exec(
+            "git", "pull",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        stdout, _ = await proc.communicate()
+        output = stdout.decode().strip()
+        await msg.edit(content=f"```\n{output[:1900]}\n```\nRestarting...")
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+        return
+
     is_dm = not message.guild
     guild_id = message.guild.id if not is_dm else 0
     cfg = config.load(guild_id)

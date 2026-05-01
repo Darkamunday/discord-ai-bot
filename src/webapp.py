@@ -1,9 +1,10 @@
 import base64
+import functools
 import json
 import os
 import re
 
-from flask import Blueprint, Response, render_template_string, request, stream_with_context
+from flask import Blueprint, Response, redirect, render_template_string, request, session, stream_with_context, url_for
 
 from src import config
 from src.llm import improve_prompt, get_inpaint_params, chat, describe_image
@@ -15,6 +16,81 @@ from src.comfyui import (
 from src.music import generate_music
 
 bp = Blueprint("webapp", __name__)
+
+
+def _password() -> str:
+    return os.getenv("WEBAPP_PASSWORD", "")
+
+
+def _require_auth(f):
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        pw = _password()
+        if pw and not session.get("webapp_authed"):
+            return redirect(url_for("webapp.login", next=request.path))
+        return f(*args, **kwargs)
+    return wrapped
+
+
+LOGIN_TEMPLATE = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lucy — Login</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #06060f;
+      background-image: radial-gradient(ellipse 80% 40% at 50% -10%, rgba(124,58,237,0.12) 0%, transparent 70%);
+      color: #e2e2f0;
+      min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+    }
+    .card {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);
+      backdrop-filter: blur(24px); border-radius: 20px;
+      padding: 40px 36px; width: 100%; max-width: 360px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+    }
+    h1 {
+      background: linear-gradient(120deg, #c4b5fd 0%, #818cf8 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 28px;
+    }
+    label { display: block; font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-bottom: 6px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+    input[type=password] {
+      width: 100%; padding: 10px 14px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; color: #e2e2f0; font-size: 0.92rem; font-family: inherit;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input[type=password]:focus { border-color: rgba(124,58,237,0.5); box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }
+    button {
+      margin-top: 20px; width: 100%; padding: 11px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff; border: none; border-radius: 12px;
+      font-size: 0.92rem; font-weight: 600; cursor: pointer; font-family: inherit;
+      box-shadow: 0 4px 16px rgba(124,58,237,0.45);
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    button:hover { opacity: 0.9; transform: translateY(-1px); }
+    .err { margin-top: 14px; font-size: 0.82rem; color: #f87171; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Lucy</h1>
+    <form method="post">
+      <label for="pw">Password</label>
+      <input type="password" id="pw" name="pw" autofocus autocomplete="current-password">
+      <button type="submit">Enter</button>
+      {% if error %}<p class="err">Incorrect password</p>{% endif %}
+    </form>
+  </div>
+</body>
+</html>"""
 
 
 def _guild_id() -> int:
@@ -245,7 +321,10 @@ TEMPLATE = """<!doctype html>
 
   <div id="topbar">
     <span>Lucy</span>
-    <button id="clear-btn" onclick="clearHistory()">New chat</button>
+    <div style="display:flex;gap:8px">
+      <button id="clear-btn" onclick="clearHistory()">New chat</button>
+      <a href="/app/logout" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);color:rgba(255,255,255,0.35);padding:5px 16px;border-radius:20px;cursor:pointer;font-size:0.78rem;font-family:inherit;font-weight:500;text-decoration:none;display:flex;align-items:center;transition:all 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='#eee'" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='rgba(255,255,255,0.35)'">Logout</a>
+    </div>
   </div>
 
   <div id="messages"></div>
@@ -645,12 +724,30 @@ TEMPLATE = """<!doctype html>
 </html>"""
 
 
+@bp.route("/app/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        if request.form.get("pw", "") == _password():
+            session["webapp_authed"] = True
+            return redirect(request.args.get("next") or url_for("webapp.index"))
+        return render_template_string(LOGIN_TEMPLATE, error=True)
+    return render_template_string(LOGIN_TEMPLATE, error=False)
+
+
+@bp.route("/app/logout")
+def logout():
+    session.pop("webapp_authed", None)
+    return redirect(url_for("webapp.login"))
+
+
 @bp.route("/app")
+@_require_auth
 def index():
     return render_template_string(TEMPLATE)
 
 
 @bp.route("/app/send", methods=["POST"])
+@_require_auth
 def send():
     text = request.form.get("text", "").strip()
     img_file = request.files.get("image")
@@ -745,6 +842,7 @@ def send():
 
 
 @bp.route("/app/inpaint", methods=["POST"])
+@_require_auth
 def inpaint():
     text = request.form.get("text", "").strip()
     img_file = request.files.get("image")

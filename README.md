@@ -1,6 +1,6 @@
 # discord-ai-bot
 
-A Discord bot (Lucy) that generates and edits images using a local Ollama LLM for prompt refinement and a remote ComfyUI instance for image generation.
+Lucy — a Discord bot and web app that generates images, edits images, creates music, and chats, using a local Ollama LLM for prompt refinement, a remote ComfyUI instance for image generation, and an ACE-Step server for music.
 
 ## Triggers
 
@@ -69,6 +69,15 @@ lucy upscale  [+ image attachment]
 ```
 Upscales to 2048px using SeedVR2.
 
+### Music generation
+```
+lucy music of <description>
+lucy song about <description>
+lucy compose a <description>
+lucy make a track about <description>
+```
+Generates a WAV file via ACE-Step and sends it as a Discord attachment. Duration, steps, and guidance are configurable per server in the admin UI.
+
 ### Chat
 ```
 lucy <anything>
@@ -101,6 +110,7 @@ Reply directly to any of Lucy's messages to continue the conversation with full 
   - GroundingDINO SwinT + SAM ViT-H (auto-masking)
   - Any LoRA `.safetensors` files placed in ComfyUI's models folder
   - Custom nodes: [comfyui_segment_anything](https://github.com/storyicon/comfyui_segment_anything), Power Lora Loader (rgthree)
+- [ACE-Step](https://github.com/ace-step/ACE-Step) server running and reachable at `ACESTEP_BASE_URL` (for music generation)
 
 ## Setup
 
@@ -118,7 +128,7 @@ See `.env.example` for all required variables.
 
 ## Admin UI
 
-A Flask admin panel runs at `http://localhost:5000` — configure per-guild settings:
+A Flask admin panel runs at `http://localhost:5000` — login with Discord (must be an admin in a server Lucy is in). Configure per-guild settings:
 
 - **Bot** — trigger prefix
 - **Language Model** — Ollama model, inpaint model, vision model, NSFW model, system prompt
@@ -127,10 +137,21 @@ A Flask admin panel runs at `http://localhost:5000` — configure per-guild sett
 - **LoRAs** — add/remove character LoRAs per server: trigger word, LoRA path (dropdown from ComfyUI), strength, prepend text
 - **Inpainting** — GroundingDINO threshold, mask expand, blur radius
 - **Upscaling** — output resolution, colour correction mode
+- **Music** — duration, inference steps, guidance scale for ACE-Step
 - **Channels** — restrict Lucy to specific channels (empty = all channels)
+
+## Web app
+
+A chat UI is available at `http://<host>:5000/app`. Protected by a session password (`WEBAPP_PASSWORD` env var — leave empty to disable).
+
+Features:
+- Mode buttons above the input bar: **Chat / Image / Music**
+- With a file attached, modes switch to: **Describe / Inpaint / Paint Mask / Upscale / Restyle**
+- Canvas mask editor for manual inpainting — paint a mask directly over the image
+- SSE streaming responses — text streams in, images and audio render inline
+- Dark glassmorphism UI
 
 ## Planned
 
-- Selectable personalities per guild — pre-built personas choosable via admin UI
-- `lucy give me music of <prompt>` — music generation via ACE-Step
+- Selectable personalities per guild
 - ComfyUI auth (currently open IP, fine for dev)

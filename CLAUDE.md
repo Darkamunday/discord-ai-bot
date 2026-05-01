@@ -129,10 +129,30 @@ discord-ai-bot/
 - Generated images in web app capped at 420px display height (click to open full size)
 - NSFW prompt: 120-word limit in system prompt + hard 1800-char truncation
 
+### Completed — Step 10: ACE-Step music generation
+- `src/music.py`: `generate_music()` POSTs to `/release_task`, polls `/query_result`, fetches audio via `/v1/audio` — configurable via `ACESTEP_BASE_URL` env var
+- `src/config.py`: added `music_duration` (30s), `music_steps` (20), `music_guidance` (4.0) per-guild defaults
+- `src/bot.py`: triggers on `music of`, `song about`, `compose a`, etc.; sends WAV as Discord file attachment
+- `src/webapp.py`: same triggers in `/app` send route; returns base64 audio in SSE event; audio player rendered in chat bubble
+- `src/web.py`: Music tab in admin panel — duration/steps/guidance per guild
+- `.env.example`: added `ACESTEP_BASE_URL`
+
+### Completed — Step 11: Web app mode selector buttons
+- `src/webapp.py`: replaced keyword-scanning dispatch with explicit mode buttons — Chat / Image / Music above the input bar
+- Mode switches to Describe / Inpaint / Paint Mask / Upscale / Restyle when a file is attached
+- Mode sent as a form field; server dispatches on it directly — no more trigger-word matching in the web app
+
+### Completed — Step 12: Pixverse-inspired UI redesign for /app
+- `src/webapp.py`: dark glassmorphism design — Inter font, purple gradient accents, pill mode buttons, frosted-glass input bar
+
+### Completed — Step 13: Web app password protection
+- `src/webapp.py`: session-based login at `/app/login`; all `/app` routes require authentication
+- `WEBAPP_PASSWORD` env var controls access — leave empty to disable
+- Logout link in topbar
+- `.env.example`: added `WEBAPP_PASSWORD`
+
 ## Next
-Options: outpainting, additional LoRA characters, music generation, web app auth. Ask user what to tackle next.
+Options: outpainting, additional LoRA characters, admin UI auth. Ask user what to tackle next.
 
 ## Deferred
 - ComfyUI auth (open IP, no auth yet — fine for dev, needed before going public)
-- ACE-Step music generation (`lucy give me music of ...`)
-- Web app / admin UI auth (now on 0.0.0.0, no login protection)

@@ -212,7 +212,7 @@ TEMPLATE = """
       <div id="tab-imggen" class="tab-panel">
         <label>Model</label>
         <select name="txt2img_model" id="model-select" onchange="updateModelFields()">
-          {% for val, label in [("zit", "Z Image Turbo"), ("juggernaut", "Juggernaut XL"), ("flux_schnell", "FLUX.1 Schnell"), ("flux_dev", "FLUX.1 Dev"), ("flux2_klein", "FLUX.2 Klein")] %}
+          {% for val, label in [("zit", "Z Image Turbo"), ("flux_schnell", "FLUX.1 Schnell"), ("flux_dev", "FLUX.1 Dev"), ("flux2_klein", "FLUX.2 Klein")] %}
             <option value="{{ val }}" {% if cfg.txt2img_model == val %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
@@ -225,13 +225,6 @@ TEMPLATE = """
         <div id="zit-fields">
           <div class="row">
             <div><label>Steps</label><input type="number" name="zit_steps" value="{{ cfg.zit_steps }}"><p class="muted">8 recommended</p></div>
-          </div>
-        </div>
-
-        <div id="juggernaut-fields">
-          <div class="row">
-            <div><label>Steps</label><input type="number" name="image_steps" value="{{ cfg.image_steps }}"></div>
-            <div><label>CFG</label><input type="number" step="0.1" name="image_cfg" value="{{ cfg.image_cfg }}"></div>
           </div>
         </div>
 
@@ -400,7 +393,6 @@ TEMPLATE = """
     function updateModelFields() {
       const m = document.getElementById('model-select').value;
       document.getElementById('zit-fields').style.display = m === 'zit' ? '' : 'none';
-      document.getElementById('juggernaut-fields').style.display = m === 'juggernaut' ? '' : 'none';
       document.getElementById('flux2-klein-fields').style.display = m === 'flux2_klein' ? '' : 'none';
       document.getElementById('flux-dev-fields').style.display = m === 'flux_dev' ? '' : 'none';
     }

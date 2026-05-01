@@ -105,6 +105,8 @@ Reply directly to any of Lucy's messages to continue the conversation with full 
 - [Ollama](https://ollama.com/) running locally with your chosen models pulled
 - ComfyUI on a remote machine with the following models:
   - `z_image_turbo_bf16.safetensors` + `qwen_3_4b.safetensors` + `ae.safetensors` (Z Image Turbo — default)
+  - `flux1-schnell.safetensors` or `flux1-dev.safetensors` + `clip_l.safetensors` + `t5xxl_fp16.safetensors` (optional — FLUX.1 Schnell/Dev)
+  - FLUX.2 Klein model + `ae.safetensors` (optional — FLUX.2 Klein)
   - Qwen Image Edit fp8 + Lightning LoRA + Qwen2.5-VL 7B fp8 CLIP (inpainting)
   - `seedvr2_ema_7b_sharp_fp16.safetensors` + `ema_vae_fp16.safetensors` (upscaling)
   - GroundingDINO SwinT + SAM ViT-H (auto-masking)
@@ -132,7 +134,7 @@ A Flask admin panel runs at `http://localhost:5000` — login with Discord (must
 
 - **Bot** — trigger prefix
 - **Language Model** — Ollama model, inpaint model, vision model, NSFW model, system prompt
-- **Image Generation** — model selector (Z Image Turbo / Juggernaut XL / FLUX.1 Schnell / FLUX.1 Dev), dimensions, steps
+- **Image Generation** — model selector (Z Image Turbo / FLUX.1 Schnell / FLUX.1 Dev / FLUX.2 Klein), dimensions, steps
 - **Flux2 Restyle** — steps and CFG for the i2i restyle pipeline
 - **LoRAs** — add/remove character LoRAs per server: trigger word, LoRA path (dropdown from ComfyUI), strength, prepend text
 - **Inpainting** — GroundingDINO threshold, mask expand, blur radius

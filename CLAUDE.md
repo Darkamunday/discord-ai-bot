@@ -96,10 +96,11 @@ discord-ai-bot/
 - `workflows/flux_schnell.json`: FLUX.1 Schnell workflow (4 steps, no guidance)
 - `workflows/flux_dev.json`: FLUX.1 Dev workflow (20 steps, FluxGuidance node)
 - `src/config.py`: added `txt2img_model`, `flux_steps`, `flux_guidance`, `nsfw_image_model` defaults
-- `src/comfyui.py`: `generate_image()` routes to juggernaut/flux_schnell/flux_dev based on per-guild config
+- `src/comfyui.py`: `generate_image()` routes to zit/flux_schnell/flux_dev/flux2_klein based on per-guild config
 - `src/llm.py`: `improve_prompt()` accepts `nsfw` flag — uses uncensored model + explicit system prompt when true
 - `src/bot.py`: detects "nsfw" keyword in message, passes flag to `improve_prompt()`
-- `src/web.py`: model selector in Image Generation tab (Juggernaut/Schnell/Dev with conditional fields); NSFW model field in Language Model tab; Discord OAuth2 login added
+- `src/web.py`: model selector in Image Generation tab (ZIT/Schnell/Dev/FLUX.2 Klein with conditional fields); NSFW model field in Language Model tab; Discord OAuth2 login added
+- Note: Juggernaut XL removed — `txt2img.json` workflow deleted, `else` branch removed from `generate_image()`
 - Models: `flux1-dev.safetensors`, `flux1-schnell.safetensors`, `ae.safetensors`, `clip_l.safetensors`, `t5xxl_fp16.safetensors` on ComfyUI machine; `dolphin-mistral` via Ollama for NSFW prompts
 
 ### Completed — Step 8: ZIT model + per-guild LoRA support

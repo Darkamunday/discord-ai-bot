@@ -49,7 +49,7 @@ def _poll_for_image(prompt_id: str) -> bytes:
 
 def generate_image(prompt: str, guild_id: int) -> bytes:
     cfg = config.load(guild_id)
-    model = cfg.get("txt2img_model", "juggernaut")
+    model = cfg.get("txt2img_model", "zit")
 
     if model == "zit":
         workflow = _get_workflow("zit_t2i.json")
@@ -76,14 +76,6 @@ def generate_image(prompt: str, guild_id: int) -> bytes:
         if model == "flux_dev":
             workflow["8"]["inputs"]["steps"] = cfg["flux_steps"]
             workflow["13"]["inputs"]["guidance"] = cfg["flux_guidance"]
-    else:
-        workflow = _get_workflow("txt2img.json")
-        workflow["2"]["inputs"]["text"] = prompt
-        workflow["4"]["inputs"]["width"] = cfg["image_width"]
-        workflow["4"]["inputs"]["height"] = cfg["image_height"]
-        workflow["5"]["inputs"]["steps"] = cfg["image_steps"]
-        workflow["5"]["inputs"]["cfg"] = cfg["image_cfg"]
-        workflow["5"]["inputs"]["seed"] = random.randint(0, 2**32 - 1)
 
     return _poll_for_image(_post_prompt(workflow))
 

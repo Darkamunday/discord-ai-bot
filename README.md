@@ -155,5 +155,6 @@ Features:
 
 - Member system for `/app` — user accounts, per-user history, and access control for the web UI
 - Server-side storage of generated images and music — browse and replay past generations in the web UI
+- Persistent conversation history — retain context across sessions in the web UI and bot
 - Selectable personalities per guild
 - ComfyUI auth (currently open IP, fine for dev)

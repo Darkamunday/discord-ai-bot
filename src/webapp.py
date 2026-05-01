@@ -12,6 +12,7 @@ from src.comfyui import (
     generate_image_qwen_inpaint, generate_image_manual_inpaint,
     generate_image_upscale, generate_image_flux2_i2i,
 )
+from src.music import generate_music
 
 bp = Blueprint("webapp", __name__)
 
@@ -19,6 +20,7 @@ IMAGE_TRIGGERS = ("image of", "picture of", "photo of", "draw ", "create a", "ge
 EDIT_KEYWORDS   = ("change", "make", "turn", "replace", "edit", "modify", "add", "remove")
 UPSCALE_WORDS   = ("upscale", "upsacle", "upsale", "upscal")
 RESTYLE_WORDS   = ("restyle", "remix", "variation")
+MUSIC_TRIGGERS  = ("music of", "music about", "give me music", "make music", "create music", "generate music", "song about", "song of", "compose a", "a song about")
 
 
 def _guild_id() -> int:
@@ -60,6 +62,7 @@ TEMPLATE = """<!doctype html>
     .user .bubble { background: #7c3aed; color: #fff; border-bottom-right-radius: 3px; }
     .lucy .bubble { background: #1e1e3a; border: 1px solid #2d2d50; border-bottom-left-radius: 3px; }
     .bubble img { max-width: 100%; max-height: 420px; object-fit: contain; border-radius: 8px; display: block; margin-top: 8px; cursor: pointer; }
+    .bubble audio { display: block; margin-top: 8px; width: 100%; max-width: 480px; }
     .prompt-caption { font-size: 0.75rem; color: #666; margin-top: 5px; font-style: italic; }
     .status { color: #a78bfa; }
     .error   { color: #f87171; }
@@ -299,6 +302,10 @@ TEMPLATE = """<!doctype html>
           } else if (ev.text) {
             result.text = ev.text;
             bubble.innerHTML = escape(ev.text).replace(/\\n/g,'<br>');
+          } else if (ev.audio) {
+            let html = `<audio controls src="data:audio/wav;base64,${ev.audio}"></audio>`;
+            if (ev.prompt) html += `<div class="prompt-caption">${escape(ev.prompt)}</div>`;
+            bubble.innerHTML = html;
           } else if (ev.error) {
             bubble.innerHTML = `<span class="error">Error: ${escape(ev.error)}</span>`;
           }
@@ -600,6 +607,14 @@ def send():
                 else:
                     result = generate_image(improved, guild_id)
                 yield _event({"image": base64.b64encode(result).decode(), "prompt": improved})
+
+            elif any(kw in lower for kw in MUSIC_TRIGGERS):
+                matched_kw = next((kw for kw in MUSIC_TRIGGERS if kw in lower), None)
+                idx = lower.index(matched_kw) + len(matched_kw) if matched_kw else 0
+                music_prompt = text[idx:].strip() or text
+                yield _event({"status": f"Composing: {music_prompt[:80]}…"})
+                audio_bytes = generate_music(music_prompt, guild_id)
+                yield _event({"audio": base64.b64encode(audio_bytes).decode(), "prompt": music_prompt})
 
             else:
                 yield _event({"status": "Thinking…"})

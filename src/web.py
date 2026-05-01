@@ -184,6 +184,7 @@ TEMPLATE = """
         <button type="button" class="tab-btn" onclick="showTab('inpaint', this)">Inpainting</button>
         <button type="button" class="tab-btn" onclick="showTab('upscale', this)">Upscaling</button>
         <button type="button" class="tab-btn" onclick="showTab('loras', this)">LoRAs</button>
+        <button type="button" class="tab-btn" onclick="showTab('music', this)">Music</button>
         <button type="button" class="tab-btn" onclick="showTab('channels', this)">Channels</button>
       </div>
 
@@ -331,6 +332,24 @@ TEMPLATE = """
         </table>
         <input type="hidden" name="lora_count" id="lora-count" value="{{ cfg.loras | length }}">
         <button type="button" onclick="addLora()" style="margin-top:12px;background:#1e3a5f;color:#93c5fd;border:1px solid #2563eb;border-radius:6px;padding:6px 16px;cursor:pointer">+ Add LoRA</button>
+      </div>
+
+      <div id="tab-music" class="tab-panel">
+        <p class="muted" style="margin:0 0 16px">ACE-Step music generation settings. Server URL is set via <code>ACESTEP_BASE_URL</code> in your .env file.</p>
+        <div class="row">
+          <div>
+            <label>Duration (seconds)</label>
+            <input type="number" name="music_duration" value="{{ cfg.music_duration }}" min="10" max="120" step="5">
+          </div>
+          <div>
+            <label>Inference Steps</label>
+            <input type="number" name="music_steps" value="{{ cfg.music_steps }}" min="5" max="100">
+          </div>
+          <div>
+            <label>Guidance Scale</label>
+            <input type="number" name="music_guidance" value="{{ cfg.music_guidance }}" min="1" max="10" step="0.5">
+          </div>
+        </div>
       </div>
 
       <div id="tab-channels" class="tab-panel">
@@ -529,6 +548,9 @@ def index():
             for i in range(lora_count)
             if request.form.get(f"lora_trigger_{i}", "").strip()
         ]
+        cfg["music_duration"] = int(request.form.get("music_duration", 30))
+        cfg["music_steps"] = int(request.form.get("music_steps", 20))
+        cfg["music_guidance"] = float(request.form.get("music_guidance", 4.0))
         cfg["allowed_channels"] = [int(v) for v in request.form.getlist("allowed_channels")]
         config.save(guild_id, cfg)
         saved = True

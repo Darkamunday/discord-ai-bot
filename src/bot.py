@@ -6,6 +6,7 @@ import sys
 import discord
 from src.llm import improve_prompt, get_inpaint_params, chat, describe_image
 from src.comfyui import generate_image, generate_image_lora, generate_image_qwen_inpaint, generate_image_upscale, generate_image_flux2_i2i
+from src.music import generate_music
 from src import config, state
 
 def _owner_id() -> int:
@@ -307,6 +308,28 @@ async def on_message(message):
             await msg.delete()
         except Exception as e:
             await msg.edit(content=f"Error: {e}"[:1990])
+    elif any(kw in lower for kw in ("music of", "music about", "give me music", "make music", "create music", "generate music", "song about", "song of", "compose a", "a song about")):
+        MUSIC_KW = ("music of", "music about", "give me music", "make music", "create music", "generate music", "song about", "song of", "compose a", "a song about")
+        matched_kw = next((kw for kw in MUSIC_KW if kw in lower), None)
+        idx = lower.index(matched_kw) + len(matched_kw) if matched_kw else len(prefix)
+        music_prompt = content[idx:].strip() or content[len(prefix):].strip()
+        if not music_prompt:
+            await message.reply("What should the music be about?")
+        else:
+            msg = await message.reply("Composing...")
+            try:
+                async with message.channel.typing():
+                    audio_bytes = await asyncio.get_event_loop().run_in_executor(
+                        None, generate_music, music_prompt, guild_id
+                    )
+                await message.channel.send(
+                    content=f"🎵 *{music_prompt[:200]}*",
+                    file=discord.File(fp=__import__("io").BytesIO(audio_bytes), filename="music.wav")
+                )
+                await msg.delete()
+            except Exception as e:
+                await msg.edit(content=f"Error: {e}"[:1990])
+
     else:
         user_message = content[len(prefix):].strip() if content.lower().startswith(prefix) else content.strip()
         history = await _build_history(message, prefix)

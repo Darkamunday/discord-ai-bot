@@ -32,6 +32,9 @@ DEFAULTS = {
     "nsfw_image_model": "dolphin-mistral",
     "vision_model": "gemma3:12b",
     "allowed_channels": [],
+    "music_duration": 30,
+    "music_steps": 20,
+    "music_guidance": 4.0,
 }
 
 

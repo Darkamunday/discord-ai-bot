@@ -16,12 +16,6 @@ from src.music import generate_music
 
 bp = Blueprint("webapp", __name__)
 
-IMAGE_TRIGGERS = ("image of", "picture of", "photo of", "draw ", "create a", "generate a")
-EDIT_KEYWORDS   = ("change", "make", "turn", "replace", "edit", "modify", "add", "remove")
-UPSCALE_WORDS   = ("upscale", "upsacle", "upsale", "upscal")
-RESTYLE_WORDS   = ("restyle", "remix", "variation")
-MUSIC_TRIGGERS  = ("music of", "music about", "give me music", "make music", "create music", "generate music", "song about", "song of", "compose a", "a song about")
-
 
 def _guild_id() -> int:
     return int(os.getenv("WEBAPP_GUILD_ID", "0"))
@@ -102,6 +96,15 @@ TEMPLATE = """<!doctype html>
     #send-btn:hover:not(:disabled) { background: #6d28d9; }
     #send-btn:disabled { background: #3a3a5c; cursor: not-allowed; }
     #file-input { display: none; }
+
+    #modes { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .mode-btn {
+      padding: 4px 13px; border-radius: 6px; border: 1px solid #444;
+      background: #1e1e3a; color: #aaa; cursor: pointer; font-size: 0.82rem;
+      white-space: nowrap; transition: background 0.15s, color 0.15s;
+    }
+    .mode-btn:hover { background: #2d2d50; color: #eee; }
+    .mode-btn.active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
 
     .name { font-size: 0.75rem; color: #666; margin-bottom: 3px; padding: 0 4px; }
 
@@ -187,10 +190,15 @@ TEMPLATE = """<!doctype html>
       <span id="prev-name"></span>
       <button onclick="clearFile()" title="Remove">✕</button>
     </div>
+    <div id="modes">
+      <button class="mode-btn active" data-mode="chat"  onclick="selectMode('chat')">Chat</button>
+      <button class="mode-btn"        data-mode="image" onclick="selectMode('image')">Image</button>
+      <button class="mode-btn"        data-mode="music" onclick="selectMode('music')">Music</button>
+    </div>
     <div id="row">
       <button id="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach image">📎</button>
       <input type="file" id="file-input" accept="image/*" onchange="pickFile(this)">
-      <textarea id="text" placeholder="Ask Lucy anything, or say 'image of …' to generate…" rows="1"
+      <textarea id="text" rows="1"
         oninput="autosize(this)" onkeydown="onKey(event)"></textarea>
       <button id="send-btn" onclick="send()">Send</button>
     </div>
@@ -201,6 +209,47 @@ TEMPLATE = """<!doctype html>
   const LS_KEY = 'lucy_chat_history';
   const MAX_HIST_PAIRS = 20;
   let chatHistory = [];
+  let selectedMode = 'chat';
+
+  const TEXT_MODES = [
+    {id:'chat', label:'Chat'}, {id:'image', label:'Image'}, {id:'music', label:'Music'}
+  ];
+  const IMAGE_MODES = [
+    {id:'describe', label:'Describe'}, {id:'inpaint', label:'Inpaint'},
+    {id:'paint-mask', label:'Paint Mask'}, {id:'upscale', label:'Upscale'},
+    {id:'restyle', label:'Restyle'}
+  ];
+  const PLACEHOLDERS = {
+    'chat':       'Ask Lucy anything…',
+    'image':      'Describe the image to generate…',
+    'music':      'Describe the music (style, mood, genre)…',
+    'describe':   'Ask about the image (optional)…',
+    'inpaint':    'Describe the edit to make…',
+    'paint-mask': 'Describe what to do with the painted area…',
+    'upscale':    '(No prompt needed, just send)',
+    'restyle':    'Describe the new style…',
+  };
+
+  function renderModes(modes, defaultId) {
+    const el = document.getElementById('modes');
+    el.innerHTML = '';
+    for (const m of modes) {
+      const btn = document.createElement('button');
+      btn.className = 'mode-btn' + (m.id === defaultId ? ' active' : '');
+      btn.dataset.mode = m.id;
+      btn.textContent = m.label;
+      btn.onclick = () => selectMode(m.id);
+      el.appendChild(btn);
+    }
+  }
+
+  function selectMode(id) {
+    selectedMode = id;
+    document.querySelectorAll('#modes .mode-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === id)
+    );
+    document.getElementById('text').placeholder = PLACEHOLDERS[id] || '';
+  }
 
   function loadHistory() {
     try {
@@ -246,11 +295,15 @@ TEMPLATE = """<!doctype html>
       document.getElementById('preview').style.display = 'flex';
     };
     reader.readAsDataURL(file);
+    renderModes(IMAGE_MODES, 'describe');
+    selectMode('describe');
   }
   function clearFile() {
     file = null;
     document.getElementById('file-input').value = '';
     document.getElementById('preview').style.display = 'none';
+    renderModes(TEXT_MODES, 'chat');
+    selectMode('chat');
   }
   function onKey(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
@@ -319,15 +372,13 @@ TEMPLATE = """<!doctype html>
   }
 
   // ── send ─────────────────────────────────────────────────────────
-  const EDIT_KW = ['change','make','turn','replace','edit','modify','add','remove'];
   async function send() {
     const textEl = document.getElementById('text');
     const text = textEl.value.trim();
-    if (!text && !file) return;
+    if (!text && !file && selectedMode !== 'upscale') return;
 
-    // intercept edit-intent + image → mask editor
-    const lower = text.toLowerCase();
-    if (file && EDIT_KW.some(kw => lower.includes(kw))) {
+    if (selectedMode === 'paint-mask') {
+      if (!file) return;
       showMaskEditor(file, text);
       textEl.value = ''; autosize(textEl); clearFile();
       return;
@@ -342,11 +393,12 @@ TEMPLATE = """<!doctype html>
     const lucyBubble = addBubble('lucy', '<span class="status">...</span>');
     const fd = new FormData();
     fd.append('text', text);
+    fd.append('mode', selectedMode);
     fd.append('history', JSON.stringify(chatHistory));
     if (file) fd.append('image', file);
     clearFile();
     if (text) chatHistory.push({role: 'user', content: text});
-    const result = await streamInto(lucyBubble, fetch('/app/send', { method: 'POST', body: fd }));
+    const result = await streamInto(lucyBubble, fetch('/app/send', {method:'POST', body:fd}));
     if (result.text) {
       chatHistory.push({role: 'assistant', content: result.text});
       saveHistory();
@@ -466,6 +518,7 @@ TEMPLATE = """<!doctype html>
   })();
 
   loadHistory();
+  selectMode('chat');
 
   async function submitMask() {
     console.log('[mask] submitMask fired, maskOrigW=', maskOrigW, 'maskOrigH=', maskOrigH,
@@ -537,6 +590,7 @@ def send():
     img_file = request.files.get("image")
     guild_id = _guild_id()
     lower = text.lower()
+    mode = request.form.get("mode", "").strip().lower()
 
     try:
         history = json.loads(request.form.get("history", "[]"))
@@ -552,19 +606,19 @@ def send():
             nsfw = "nsfw" in lower
             cfg = config.load(guild_id)
 
-            if image_bytes and any(kw in lower for kw in UPSCALE_WORDS):
+            if mode == "upscale" and image_bytes:
                 yield _event({"status": "Upscaling…"})
                 result = generate_image_upscale(image_bytes, filename, guild_id)
                 yield _event({"image": base64.b64encode(result).decode()})
 
-            elif image_bytes and any(kw in lower for kw in RESTYLE_WORDS):
+            elif mode == "restyle" and image_bytes:
                 yield _event({"status": "Improving prompt…"})
                 improved = improve_prompt(text, guild_id, nsfw)
                 yield _event({"status": f"Restyling: {improved[:80]}…"})
                 result = generate_image_flux2_i2i(improved, image_bytes, filename, guild_id)
                 yield _event({"image": base64.b64encode(result).decode(), "prompt": improved})
 
-            elif image_bytes and any(kw in lower for kw in EDIT_KEYWORDS):
+            elif mode == "inpaint" and image_bytes:
                 yield _event({"status": "Analysing image…"})
                 params = get_inpaint_params(text, guild_id, nsfw)
                 subject = params.get("mask_subject", "subject")
@@ -573,32 +627,26 @@ def send():
                 result = generate_image_qwen_inpaint(improved, subject, image_bytes, filename, guild_id)
                 yield _event({"image": base64.b64encode(result).decode(), "prompt": improved})
 
-            elif image_bytes:
+            elif mode == "describe" and image_bytes:
                 yield _event({"status": "Analysing image…"})
                 description = describe_image(image_bytes, text, guild_id)
                 yield _event({"text": description})
 
-            elif any(kw in lower for kw in IMAGE_TRIGGERS) or any(l.get("trigger","").lower() in lower for l in cfg.get("loras",[])):
-                matched_kw = next((kw for kw in IMAGE_TRIGGERS if kw in lower), None)
-                idx = lower.index(matched_kw) + len(matched_kw) if matched_kw else 0
-                prompt_text = text[idx:].strip() or text
-
+            elif mode == "image":
                 matched_lora = next(
                     (l for l in cfg.get("loras", []) if l.get("trigger", "").lower() in lower),
                     None
                 )
-
                 yield _event({"status": "Improving prompt…"})
                 if matched_lora:
                     trigger = matched_lora.get("trigger", "")
-                    clean = re.sub(rf'\b{re.escape(trigger)}\b', '', prompt_text, flags=re.IGNORECASE).strip()
+                    clean = re.sub(rf'\b{re.escape(trigger)}\b', '', text, flags=re.IGNORECASE).strip()
                     improved = improve_prompt(clean, guild_id, nsfw)
                     prepend = matched_lora.get("prepend", "").strip()
                     if prepend:
                         improved = f"{prepend}, {improved}"
                 else:
-                    improved = improve_prompt(prompt_text, guild_id, nsfw)
-
+                    improved = improve_prompt(text, guild_id, nsfw)
                 yield _event({"status": f"Generating: {improved[:80]}…"})
                 if matched_lora:
                     result = generate_image_lora(
@@ -608,13 +656,10 @@ def send():
                     result = generate_image(improved, guild_id)
                 yield _event({"image": base64.b64encode(result).decode(), "prompt": improved})
 
-            elif any(kw in lower for kw in MUSIC_TRIGGERS):
-                matched_kw = next((kw for kw in MUSIC_TRIGGERS if kw in lower), None)
-                idx = lower.index(matched_kw) + len(matched_kw) if matched_kw else 0
-                music_prompt = text[idx:].strip() or text
-                yield _event({"status": f"Composing: {music_prompt[:80]}…"})
-                audio_bytes = generate_music(music_prompt, guild_id)
-                yield _event({"audio": base64.b64encode(audio_bytes).decode(), "prompt": music_prompt})
+            elif mode == "music":
+                yield _event({"status": f"Composing: {text[:80]}…"})
+                audio_bytes = generate_music(text, guild_id)
+                yield _event({"audio": base64.b64encode(audio_bytes).decode(), "prompt": text})
 
             else:
                 yield _event({"status": "Thinking…"})

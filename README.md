@@ -153,5 +153,6 @@ Features:
 
 ## Planned
 
+- Member system for `/app` — user accounts, per-user history, and access control for the web UI
 - Selectable personalities per guild
 - ComfyUI auth (currently open IP, fine for dev)

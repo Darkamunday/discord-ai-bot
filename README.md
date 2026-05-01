@@ -154,5 +154,6 @@ Features:
 ## Planned
 
 - Member system for `/app` — user accounts, per-user history, and access control for the web UI
+- Server-side storage of generated images and music — browse and replay past generations in the web UI
 - Selectable personalities per guild
 - ComfyUI auth (currently open IP, fine for dev)

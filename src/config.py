@@ -30,7 +30,7 @@ DEFAULTS = {
     "flux2_i2i_cfg": 1,
     "inpaint_model": "gpt-oss:120b-cloud",
     "nsfw_image_model": "dolphin-mistral",
-    "vision_model": "gemma3:12b",
+    "vision_model": "gemma4:31b-cloud",
     "allowed_channels": [],
     "music_duration": 30,
     "music_steps": 20,

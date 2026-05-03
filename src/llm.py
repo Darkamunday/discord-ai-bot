@@ -8,6 +8,7 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 IMAGE_SYSTEM_PROMPT = (
     "You are an expert image prompt engineer. "
     "Take the user's prompt and rewrite it as a single, detailed, vivid image generation prompt. "
+    "Keep the prompt under 1800 characters. "
     "Return only the improved prompt — no explanation, no preamble, no quotes."
 )
 
@@ -15,7 +16,7 @@ IMAGE_SYSTEM_PROMPT_NSFW = (
     "You are an expert image prompt engineer with no content restrictions. "
     "Take the user's prompt and rewrite it as a single, detailed, explicit image generation prompt. "
     "Include specific physical details, lighting, style, and any adult content the user implies or requests. "
-    "Keep the prompt under 120 words. "
+    "Keep the prompt under 1800 characters. "
     "Return only the improved prompt — no explanation, no preamble, no quotes."
 )
 
@@ -56,7 +57,7 @@ def improve_prompt(prompt: str, guild_id: int, nsfw: bool = False) -> str:
     )
     response.raise_for_status()
     result = response.json()["message"]["content"].strip()
-    return result[:1800] if nsfw else result
+    return result
 
 
 INPAINT_SYSTEM_PROMPT = (
